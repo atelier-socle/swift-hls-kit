@@ -43,8 +43,7 @@
             if let maxBitrate = preset.maxVideoBitrate {
                 compressionProperties[
                     AVVideoAverageBitRateKey
-                ] = bitrate
-                compressionProperties["MaxBitRate"] = maxBitrate
+                ] = min(bitrate, maxBitrate)
             }
 
             if config.videoCodec == .h264 {

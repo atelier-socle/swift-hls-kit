@@ -25,23 +25,12 @@
         }
 
         /// Total source duration for progress calculation.
-        private let sourceDuration: CMTime
+        let sourceDuration: CMTime
 
         /// Progress callback.
-        private let progressHandler: (@Sendable (Double) -> Void)?
+        let progressHandler: (@Sendable (Double) -> Void)?
 
-        /// Creates a transcoding session.
-        ///
-        /// - Parameters:
-        ///   - sourceDuration: Total source duration.
-        ///   - progressHandler: Optional progress callback (0.0–1.0).
-        init(
-            sourceDuration: CMTime,
-            progressHandler: (@Sendable (Double) -> Void)?
-        ) {
-            self.sourceDuration = sourceDuration
-            self.progressHandler = progressHandler
-        }
+        // Uses synthesized memberwise initializer.
 
         /// Execute the transcoding pipeline.
         ///
@@ -93,16 +82,29 @@
 
         // MARK: - Track Processing
 
-        private func processTrack(
-            readerOutput: AVAssetReaderTrackOutput,
-            writerInput: AVAssetWriterInput,
+        /// Process samples from a reader output to a writer input.
+        ///
+        /// Generic over ``SampleReading`` and ``SampleWriting`` to
+        /// support both real AVFoundation types and test mocks.
+        ///
+        /// - Parameters:
+        ///   - readerOutput: Source of sample buffers.
+        ///   - writerInput: Destination for sample buffers.
+        ///   - reportProgress: Whether to report progress.
+        func processTrack<R: SampleReading, W: SampleWriting>(
+            readerOutput: R,
+            writerInput: W,
             reportProgress: Bool
         ) async throws {
             let durationSeconds = sourceDuration.seconds
 
-            while let sampleBuffer = readerOutput.copyNextSampleBuffer() {
+            while let sampleBuffer =
+                readerOutput.copyNextSampleBuffer()
+            {
                 while !writerInput.isReadyForMoreMediaData {
-                    await Task.yield()
+                    try await Task.sleep(
+                        nanoseconds: 1_000_000
+                    )
                 }
 
                 guard writerInput.append(sampleBuffer) else {
@@ -117,7 +119,8 @@
                             sampleBuffer
                         )
                     let progress = min(
-                        currentTime.seconds / durationSeconds, 1.0
+                        currentTime.seconds / durationSeconds,
+                        1.0
                     )
                     progressHandler?(progress)
                 }

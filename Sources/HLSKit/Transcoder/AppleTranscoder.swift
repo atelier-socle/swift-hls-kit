@@ -310,6 +310,13 @@
             outputDirectory: URL,
             config: TranscodingConfig
         ) throws -> SegmentationResult? {
+            let data: Data
+            do {
+                data = try Data(contentsOf: tempURL)
+            } catch {
+                return nil
+            }
+
             let segConfig = SegmentationConfig(
                 targetSegmentDuration: config.segmentDuration,
                 containerFormat: config.containerFormat,
@@ -319,17 +326,19 @@
 
             switch config.containerFormat {
             case .fragmentedMP4:
-                return try MP4Segmenter().segmentToDirectory(
-                    data: Data(contentsOf: tempURL),
-                    outputDirectory: outputDirectory,
-                    config: segConfig
-                )
+                return try? MP4Segmenter()
+                    .segmentToDirectory(
+                        data: data,
+                        outputDirectory: outputDirectory,
+                        config: segConfig
+                    )
             case .mpegTS:
-                return try TSSegmenter().segmentToDirectory(
-                    data: Data(contentsOf: tempURL),
-                    outputDirectory: outputDirectory,
-                    config: segConfig
-                )
+                return try? TSSegmenter()
+                    .segmentToDirectory(
+                        data: data,
+                        outputDirectory: outputDirectory,
+                        config: segConfig
+                    )
             }
         }
     }

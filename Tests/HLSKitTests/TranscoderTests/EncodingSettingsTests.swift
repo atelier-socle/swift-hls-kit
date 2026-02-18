@@ -115,7 +115,7 @@
             #expect(fps == 30.0)
         }
 
-        @Test("Video settings with max bitrate")
+        @Test("Video settings clamp bitrate to max")
         func videoSettingsMaxBitrate() {
             let settings = EncodingSettings.videoSettings(
                 preset: .p720,
@@ -126,8 +126,10 @@
                 settings[
                     AVVideoCompressionPropertiesKey
                 ] as? [String: Any]
-            let maxBitrate = compression?["MaxBitRate"] as? Int
-            #expect(maxBitrate == 4_200_000)
+            let bitrate =
+                compression?[AVVideoAverageBitRateKey]
+                as? Int
+            #expect(bitrate == 2_800_000)
         }
 
         // MARK: - Audio Settings
