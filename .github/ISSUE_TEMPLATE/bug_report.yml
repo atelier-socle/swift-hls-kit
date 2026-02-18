@@ -1,0 +1,87 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Atelier Socle SAS
+
+name: Bug Report
+description: Report a bug in swift-hls-kit
+labels: [bug]
+body:
+  - type: checkboxes
+    id: search
+    attributes:
+      label: Prerequisites
+      options:
+        - label: I have searched existing issues
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear description of what the bug is.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Minimal steps to reproduce the behavior.
+      placeholder: |
+        1. Create a feature with ...
+        2. Run swift test
+        3. See error ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened. Include error messages if applicable.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: swift-version
+    attributes:
+      label: Swift Version
+      options:
+        - "6.2"
+        - "6.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      multiple: true
+      options:
+        - macOS
+        - iOS
+        - tvOS
+        - watchOS
+        - visionOS
+        - Mac Catalyst
+    validations:
+      required: true
+
+  - type: dropdown
+    id: xcode-version
+    attributes:
+      label: Xcode Version
+      options:
+        - "Xcode 26"
+        - "Xcode 16.4"
+        - "Xcode 16.3"
+        - Other
+    validations:
+      required: false
