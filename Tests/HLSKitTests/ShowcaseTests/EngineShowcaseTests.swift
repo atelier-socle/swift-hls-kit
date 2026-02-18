@@ -201,7 +201,7 @@ struct ManifestParserTests {
     @Test("Parser rejects empty string")
     func emptyString() {
         let parser = ManifestParser()
-        #expect(throws: ParserError.missingHeader) {
+        #expect(throws: ParserError.emptyManifest) {
             try parser.parse("")
         }
     }
@@ -287,7 +287,7 @@ struct AttributeParserTests {
     @Test("Parse simple attribute list")
     func simpleAttributes() throws {
         let parser = AttributeParser()
-        let result = try parser.parseAttributes("BANDWIDTH=800000,RESOLUTION=1280x720")
+        let result = parser.parseAttributes("BANDWIDTH=800000,RESOLUTION=1280x720")
         #expect(result["BANDWIDTH"] == "800000")
         #expect(result["RESOLUTION"] == "1280x720")
     }
@@ -295,7 +295,7 @@ struct AttributeParserTests {
     @Test("Parse quoted string attributes")
     func quotedAttributes() throws {
         let parser = AttributeParser()
-        let result = try parser.parseAttributes("CODECS=\"avc1.4d401f,mp4a.40.2\",BANDWIDTH=2800000")
+        let result = parser.parseAttributes("CODECS=\"avc1.4d401f,mp4a.40.2\",BANDWIDTH=2800000")
         #expect(result["CODECS"] == "avc1.4d401f,mp4a.40.2")
         #expect(result["BANDWIDTH"] == "2800000")
     }
