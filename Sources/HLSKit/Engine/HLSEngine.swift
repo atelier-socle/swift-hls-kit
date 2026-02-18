@@ -169,50 +169,85 @@ public struct HLSEngine: Sendable {
 
     // MARK: - Segmentation
 
-    /// Segment MP4 data into HLS fMP4 fragments.
+    /// Segment MP4 data into HLS segments.
+    ///
+    /// Dispatches to ``MP4Segmenter`` or ``TSSegmenter`` based on
+    /// the `containerFormat` in the configuration.
     ///
     /// - Parameters:
     ///   - data: The MP4 file data.
     ///   - config: Segmentation configuration.
     /// - Returns: The segmentation result.
-    /// - Throws: `MP4Error` if the data is not valid MP4.
+    /// - Throws: `MP4Error` or `TransportError`.
     public func segment(
         data: Data,
         config: SegmentationConfig = SegmentationConfig()
-    ) throws(MP4Error) -> SegmentationResult {
-        try MP4Segmenter().segment(data: data, config: config)
+    ) throws -> SegmentationResult {
+        switch config.containerFormat {
+        case .fragmentedMP4:
+            return try MP4Segmenter().segment(
+                data: data, config: config
+            )
+        case .mpegTS:
+            return try TSSegmenter().segment(
+                data: data, config: config
+            )
+        }
     }
 
     /// Segment an MP4 file from a URL.
+    ///
+    /// Dispatches to ``MP4Segmenter`` or ``TSSegmenter`` based on
+    /// the `containerFormat` in the configuration.
     ///
     /// - Parameters:
     ///   - url: The file URL of the MP4.
     ///   - config: Segmentation configuration.
     /// - Returns: The segmentation result.
-    /// - Throws: `MP4Error` if the file cannot be read or is invalid.
+    /// - Throws: `MP4Error` or `TransportError`.
     public func segment(
         url: URL,
         config: SegmentationConfig = SegmentationConfig()
-    ) throws(MP4Error) -> SegmentationResult {
-        try MP4Segmenter().segment(url: url, config: config)
+    ) throws -> SegmentationResult {
+        switch config.containerFormat {
+        case .fragmentedMP4:
+            return try MP4Segmenter().segment(
+                url: url, config: config
+            )
+        case .mpegTS:
+            return try TSSegmenter().segment(
+                url: url, config: config
+            )
+        }
     }
 
     /// Segment and write output files to a directory.
+    ///
+    /// Dispatches to ``MP4Segmenter`` or ``TSSegmenter`` based on
+    /// the `containerFormat` in the configuration.
     ///
     /// - Parameters:
     ///   - data: The MP4 file data.
     ///   - outputDirectory: Directory to write files to.
     ///   - config: Segmentation configuration.
     /// - Returns: The segmentation result.
-    /// - Throws: `MP4Error` if segmentation or I/O fails.
+    /// - Throws: `MP4Error` or `TransportError`.
     public func segmentToDirectory(
         data: Data,
         outputDirectory: URL,
         config: SegmentationConfig = SegmentationConfig()
-    ) throws(MP4Error) -> SegmentationResult {
-        try MP4Segmenter().segmentToDirectory(
-            data: data, outputDirectory: outputDirectory,
-            config: config
-        )
+    ) throws -> SegmentationResult {
+        switch config.containerFormat {
+        case .fragmentedMP4:
+            return try MP4Segmenter().segmentToDirectory(
+                data: data, outputDirectory: outputDirectory,
+                config: config
+            )
+        case .mpegTS:
+            return try TSSegmenter().segmentToDirectory(
+                data: data, outputDirectory: outputDirectory,
+                config: config
+            )
+        }
     }
 }

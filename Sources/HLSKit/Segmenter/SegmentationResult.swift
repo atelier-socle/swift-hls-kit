@@ -37,6 +37,12 @@ public struct SegmentationResult: Sendable {
 
     /// Number of segments.
     public var segmentCount: Int { mediaSegments.count }
+
+    /// Whether this result has an initialization segment.
+    ///
+    /// Returns `true` for fMP4 results (which require init.mp4)
+    /// and `false` for MPEG-TS results (self-contained segments).
+    public var hasInitSegment: Bool { !initSegment.isEmpty }
 }
 
 /// A single output media segment.
