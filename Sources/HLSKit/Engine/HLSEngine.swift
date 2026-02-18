@@ -117,4 +117,19 @@ public struct HLSEngine: Sendable {
         let report = validator.validate(manifest)
         return (manifest, report)
     }
+
+    /// Parses an M3U8 string and regenerates it.
+    ///
+    /// This performs a round-trip: parse → generate. Useful for
+    /// normalizing or cleaning up M3U8 manifests.
+    ///
+    /// - Parameter string: The M3U8 text to regenerate.
+    /// - Returns: The regenerated M3U8 text.
+    /// - Throws: ``ParserError`` if the input is invalid.
+    public func regenerate(
+        _ string: String
+    ) throws(ParserError) -> String {
+        let manifest = try parser.parse(string)
+        return generator.generate(manifest)
+    }
 }

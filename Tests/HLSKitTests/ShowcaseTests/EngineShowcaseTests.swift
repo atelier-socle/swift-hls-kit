@@ -368,14 +368,18 @@ struct TagWriterTests {
     @Test("Write EXTINF tag")
     func writeExtInf() {
         let writer = TagWriter()
-        let result = writer.writeExtInf(duration: 6.006, title: nil)
+        let result = writer.writeExtInf(
+            duration: 6.006, title: nil, version: .v3
+        )
         #expect(result == "#EXTINF:6.006,")
     }
 
     @Test("Write EXTINF with title")
     func writeExtInfWithTitle() {
         let writer = TagWriter()
-        let result = writer.writeExtInf(duration: 9.009, title: "Intro")
+        let result = writer.writeExtInf(
+            duration: 9.009, title: "Intro", version: .v3
+        )
         #expect(result == "#EXTINF:9.009,Intro")
     }
 
