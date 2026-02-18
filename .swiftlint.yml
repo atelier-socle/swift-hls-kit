@@ -25,6 +25,7 @@ disabled_rules:
   - blanket_disable_command
   - trailing_whitespace
   - opening_brace
+  - inclusive_language  # "master playlist" is the official RFC 8216 HLS term
 
 # Rule configurations
 line_length:
