@@ -9,11 +9,13 @@ extension HLSEngine {
 
     /// Whether a transcoder is available on the current platform.
     ///
-    /// Returns `true` on Apple platforms (AVFoundation available),
-    /// `false` otherwise.
+    /// Returns `true` on Apple platforms (AVFoundation available)
+    /// or when FFmpeg is installed on macOS/Linux.
     public var isTranscoderAvailable: Bool {
         #if canImport(AVFoundation)
             return AppleTranscoder.isAvailable
+        #elseif os(macOS) || os(Linux)
+            return FFmpegTranscoder.isAvailable
         #else
             return false
         #endif
@@ -23,6 +25,8 @@ extension HLSEngine {
     ///
     /// Uses the best available transcoder for the current platform.
     /// On Apple platforms, delegates to ``AppleTranscoder``.
+    /// On Linux (or macOS without AVFoundation), falls back to
+    /// ``FFmpegTranscoder``.
     ///
     /// - Parameters:
     ///   - input: Source media file URL.
@@ -54,6 +58,14 @@ extension HLSEngine {
                 )
             }
             return first
+        #elseif os(macOS) || os(Linux)
+            let transcoder = try FFmpegTranscoder()
+            return try await transcoder.transcode(
+                input: input,
+                outputDirectory: outputDirectory,
+                config: config,
+                progress: progress
+            )
         #else
             throw TranscodingError.transcoderNotAvailable(
                 "No transcoder available on this platform"
@@ -65,7 +77,7 @@ extension HLSEngine {
     ///
     /// Produces a complete adaptive bitrate HLS package with a
     /// master playlist. On Apple platforms, delegates to
-    /// ``AppleTranscoder``.
+    /// ``AppleTranscoder``. On Linux, uses ``FFmpegTranscoder``.
     ///
     /// - Parameters:
     ///   - input: Source media file URL.
@@ -84,6 +96,15 @@ extension HLSEngine {
     ) async throws -> MultiVariantResult {
         #if canImport(AVFoundation)
             let transcoder = AppleTranscoder()
+            return try await transcoder.transcodeVariants(
+                input: input,
+                outputDirectory: outputDirectory,
+                variants: variants,
+                config: config,
+                progress: progress
+            )
+        #elseif os(macOS) || os(Linux)
+            let transcoder = try FFmpegTranscoder()
             return try await transcoder.transcodeVariants(
                 input: input,
                 outputDirectory: outputDirectory,
