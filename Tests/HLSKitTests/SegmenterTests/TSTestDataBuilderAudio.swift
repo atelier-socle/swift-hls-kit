@@ -212,6 +212,83 @@ extension TSTestDataBuilder {
         )
     }
 
+    // MARK: - Audio-Only MP4
+
+    /// Config for building audio-only test MP4 data.
+    struct AudioOnlyConfig {
+        var samples: Int = 430
+        var sampleDelta: UInt32 = 1024
+        var timescale: UInt32 = 44100
+        var sampleSize: UInt32 = 50
+    }
+
+    /// Build an audio-only MP4 with esds box (no video track).
+    static func audioOnlyMP4WithEsds(
+        config: AudioOnlyConfig = AudioOnlyConfig()
+    ) -> Data {
+        let duration =
+            UInt32(config.samples) * config.sampleDelta
+        let mdatPayload = buildAudioOnlyMdat(config: config)
+        let ftypData = MP4TestDataBuilder.ftyp()
+        let moov0 = buildAudioOnlyMoov(
+            config: config, duration: duration,
+            stcoOffset: 0
+        )
+        let base = UInt32(ftypData.count + moov0.count + 8)
+        let moov = buildAudioOnlyMoov(
+            config: config, duration: duration,
+            stcoOffset: base
+        )
+        let mdatBox = MP4TestDataBuilder.box(
+            type: "mdat", payload: mdatPayload
+        )
+        var data = Data()
+        data.append(ftypData)
+        data.append(moov)
+        data.append(mdatBox)
+        return data
+    }
+
+    private static func buildAudioOnlyMdat(
+        config: AudioOnlyConfig
+    ) -> Data {
+        var payload = Data()
+        for i in 0..<config.samples {
+            payload.append(
+                Data(
+                    repeating: UInt8((i + 0x80) & 0xFF),
+                    count: Int(config.sampleSize)
+                )
+            )
+        }
+        return payload
+    }
+
+    private static func buildAudioOnlyMoov(
+        config: AudioOnlyConfig,
+        duration: UInt32,
+        stcoOffset: UInt32
+    ) -> Data {
+        let audioTrak = buildAudioTrak(
+            audioSamples: config.samples,
+            sampleDelta: config.sampleDelta,
+            timescale: config.timescale,
+            duration: duration,
+            sampleSize: config.sampleSize,
+            stcoOffset: stcoOffset
+        )
+        return MP4TestDataBuilder.containerBox(
+            type: "moov",
+            children: [
+                MP4TestDataBuilder.mvhd(
+                    timescale: config.timescale,
+                    duration: duration
+                ),
+                audioTrak
+            ]
+        )
+    }
+
     private static func buildAudioStbl(
         audioSamples: Int,
         sampleDelta: UInt32,
