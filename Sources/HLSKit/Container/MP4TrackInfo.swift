@@ -116,3 +116,34 @@ public struct MP4FileInfo: Sendable, Hashable {
         tracks.first { $0.mediaType == .audio }
     }
 }
+
+// MARK: - Track Analysis
+
+/// Combined track info + sample table for segmentation.
+///
+/// Use this when you need sample-level access for segmentation.
+/// For simple inspection, use `TrackInfo` instead.
+///
+/// ```swift
+/// let parser = MP4InfoParser()
+/// let analyses = try parser.parseTrackAnalysis(from: boxes)
+/// let segments = analyses[0].locator.calculateSegments(
+///     targetDuration: 6.0
+/// )
+/// ```
+public struct MP4TrackAnalysis: Sendable, Hashable {
+
+    /// Track metadata.
+    public let info: TrackInfo
+
+    /// Parsed sample table.
+    public let sampleTable: SampleTable
+
+    /// Create a sample locator for this track.
+    public var locator: SampleLocator {
+        SampleLocator(
+            sampleTable: sampleTable,
+            timescale: info.timescale
+        )
+    }
+}

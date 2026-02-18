@@ -361,6 +361,47 @@ extension MP4InfoParser {
     }
 }
 
+// MARK: - Track Analysis
+
+extension MP4InfoParser {
+
+    /// Parse detailed track analysis including sample tables.
+    ///
+    /// Use this when you need sample-level access for segmentation.
+    /// For simple inspection, use `parseFileInfo` instead.
+    ///
+    /// - Parameter boxes: Top-level boxes from MP4BoxReader.
+    /// - Returns: Array of track analyses with sample tables.
+    /// - Throws: `MP4Error` if required boxes are missing.
+    public func parseTrackAnalysis(
+        from boxes: [MP4Box]
+    ) throws(MP4Error) -> [MP4TrackAnalysis] {
+        guard
+            let moov = boxes.first(where: {
+                $0.type == MP4Box.BoxType.moov
+            })
+        else {
+            throw .missingBox("moov")
+        }
+        let stParser = SampleTableParser()
+        var analyses: [MP4TrackAnalysis] = []
+        for trak in moov.tracks {
+            let info = try parseTrack(trak)
+            let mdia = try requireChild(trak, type: "mdia")
+            let minf = try requireChild(mdia, type: "minf")
+            let stbl = try requireChild(minf, type: "stbl")
+            let sampleTable = try stParser.parse(stbl: stbl)
+            analyses.append(
+                MP4TrackAnalysis(
+                    info: info,
+                    sampleTable: sampleTable
+                )
+            )
+        }
+        return analyses
+    }
+}
+
 // MARK: - Helpers
 
 extension MP4InfoParser {
