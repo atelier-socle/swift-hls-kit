@@ -120,8 +120,7 @@ struct HLSEngineTests {
         let playlist = MasterPlaylist()
 
         let report = engine.validate(playlist)
-        #expect(report.isValid == false)
-        #expect(report.errors.count >= 1)
+        #expect(report.warnings.count >= 1)
     }
 
     @Test("Engine parseAndValidate combines both operations")

@@ -44,6 +44,9 @@ public struct ValidationResult: Sendable, Hashable, Codable {
     /// The rule set that produced this finding.
     public let ruleSet: ValidationRuleSet?
 
+    /// The specific rule identifier (e.g., `"RFC8216-4.3.4.2"`).
+    public let ruleId: String?
+
     /// Creates a validation result.
     ///
     /// - Parameters:
@@ -51,16 +54,19 @@ public struct ValidationResult: Sendable, Hashable, Codable {
     ///   - message: A description of the issue.
     ///   - field: The location of the issue.
     ///   - ruleSet: The optional rule set that found the issue.
+    ///   - ruleId: The specific rule identifier.
     public init(
         severity: ValidationSeverity,
         message: String,
         field: String,
-        ruleSet: ValidationRuleSet? = nil
+        ruleSet: ValidationRuleSet? = nil,
+        ruleId: String? = nil
     ) {
         self.severity = severity
         self.message = message
         self.field = field
         self.ruleSet = ruleSet
+        self.ruleId = ruleId
     }
 }
 
@@ -80,14 +86,23 @@ public enum ValidationRuleSet: String, Sendable, Hashable, Codable, CaseIterable
 /// convenience accessors for filtering by severity.
 public struct ValidationReport: Sendable, Hashable, Codable {
 
+    /// Which rule set was applied during validation.
+    public let ruleSet: RuleSet
+
     /// All validation results, sorted by severity (errors first).
     public let results: [ValidationResult]
 
     /// Creates a validation report.
     ///
-    /// - Parameter results: The validation results. They will be
-    ///   sorted by severity in descending order.
-    public init(results: [ValidationResult] = []) {
+    /// - Parameters:
+    ///   - ruleSet: The rule set used for validation.
+    ///   - results: The validation results. They will be
+    ///     sorted by severity in descending order.
+    public init(
+        ruleSet: RuleSet = .all,
+        results: [ValidationResult] = []
+    ) {
+        self.ruleSet = ruleSet
         self.results = results.sorted { $0.severity > $1.severity }
     }
 
@@ -109,5 +124,18 @@ public struct ValidationReport: Sendable, Hashable, Codable {
     /// All informational findings.
     public var infos: [ValidationResult] {
         results.filter { $0.severity == .info }
+    }
+
+    /// The rule sets available for validation.
+    public enum RuleSet: String, Sendable, Hashable, Codable, CaseIterable {
+
+        /// Only RFC 8216 rules.
+        case rfc8216
+
+        /// Only Apple HLS Authoring Spec rules.
+        case appleHLS
+
+        /// Both RFC 8216 and Apple HLS rules.
+        case all
     }
 }

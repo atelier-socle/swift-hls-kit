@@ -79,42 +79,74 @@ public struct HLSEngine: Sendable {
 
     // MARK: - Validation
 
-    /// Validates a manifest against all rule sets.
+    /// Validates a manifest against the specified rule set.
     ///
-    /// - Parameter manifest: The manifest to validate.
+    /// - Parameters:
+    ///   - manifest: The manifest to validate.
+    ///   - ruleSet: Which rules to apply (default: `.all`).
     /// - Returns: A ``ValidationReport`` containing all findings.
-    public func validate(_ manifest: Manifest) -> ValidationReport {
-        validator.validate(manifest)
+    public func validate(
+        _ manifest: Manifest,
+        ruleSet: ValidationReport.RuleSet = .all
+    ) -> ValidationReport {
+        validator.validate(manifest, ruleSet: ruleSet)
     }
 
-    /// Validates a master playlist against all rule sets.
+    /// Validates a master playlist against the specified rule set.
     ///
-    /// - Parameter playlist: The master playlist to validate.
+    /// - Parameters:
+    ///   - playlist: The master playlist to validate.
+    ///   - ruleSet: Which rules to apply (default: `.all`).
     /// - Returns: A ``ValidationReport``.
-    public func validate(_ playlist: MasterPlaylist) -> ValidationReport {
-        validator.validate(playlist)
+    public func validate(
+        _ playlist: MasterPlaylist,
+        ruleSet: ValidationReport.RuleSet = .all
+    ) -> ValidationReport {
+        validator.validate(playlist, ruleSet: ruleSet)
     }
 
-    /// Validates a media playlist against all rule sets.
+    /// Validates a media playlist against the specified rule set.
     ///
-    /// - Parameter playlist: The media playlist to validate.
+    /// - Parameters:
+    ///   - playlist: The media playlist to validate.
+    ///   - ruleSet: Which rules to apply (default: `.all`).
     /// - Returns: A ``ValidationReport``.
-    public func validate(_ playlist: MediaPlaylist) -> ValidationReport {
-        validator.validate(playlist)
+    public func validate(
+        _ playlist: MediaPlaylist,
+        ruleSet: ValidationReport.RuleSet = .all
+    ) -> ValidationReport {
+        validator.validate(playlist, ruleSet: ruleSet)
+    }
+
+    /// Parses and validates an M3U8 string in one step.
+    ///
+    /// - Parameters:
+    ///   - string: The M3U8 manifest content.
+    ///   - ruleSet: Which rules to apply (default: `.all`).
+    /// - Returns: A ``ValidationReport`` containing all findings.
+    /// - Throws: ``ParserError`` if parsing fails.
+    public func validateString(
+        _ string: String,
+        ruleSet: ValidationReport.RuleSet = .all
+    ) throws(ParserError) -> ValidationReport {
+        try validator.validateString(string, ruleSet: ruleSet)
     }
 
     // MARK: - Combined Workflows
 
     /// Parses a manifest and validates it in one operation.
     ///
-    /// - Parameter string: The M3U8 text.
-    /// - Returns: A tuple containing the parsed manifest and its validation report.
+    /// - Parameters:
+    ///   - string: The M3U8 text.
+    ///   - ruleSet: Which rules to apply (default: `.all`).
+    /// - Returns: A tuple of the parsed manifest and its validation report.
     /// - Throws: ``ParserError`` if the input is invalid.
     public func parseAndValidate(
-        _ string: String
+        _ string: String,
+        ruleSet: ValidationReport.RuleSet = .all
     ) throws(ParserError) -> (manifest: Manifest, report: ValidationReport) {
         let manifest = try parser.parse(string)
-        let report = validator.validate(manifest)
+        let report = validator.validate(manifest, ruleSet: ruleSet)
         return (manifest, report)
     }
 
