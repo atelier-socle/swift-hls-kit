@@ -28,6 +28,9 @@ public struct Resolution: Sendable, Hashable, Codable {
 
 extension Resolution {
 
+    /// 640 x 360 — low bandwidth / cellular.
+    public static let p360 = Resolution(width: 640, height: 360)
+
     /// 854 x 480 — standard definition.
     public static let p480 = Resolution(width: 854, height: 480)
 
