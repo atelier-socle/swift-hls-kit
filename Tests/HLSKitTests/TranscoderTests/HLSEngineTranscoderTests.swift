@@ -9,39 +9,77 @@ import Testing
 @Suite("HLSEngine Transcoding")
 struct HLSEngineTranscoderTests {
 
-    @Test("isTranscoderAvailable is false")
-    func noTranscoderAvailable() {
+    @Test("isTranscoderAvailable reflects platform")
+    func transcoderAvailability() {
         let engine = HLSEngine()
-        #expect(!engine.isTranscoderAvailable)
+        #if canImport(AVFoundation)
+            #expect(engine.isTranscoderAvailable)
+        #else
+            #expect(!engine.isTranscoderAvailable)
+        #endif
     }
 
-    @Test("transcode throws transcoderNotAvailable")
-    func transcodeThrows() async {
-        let engine = HLSEngine()
-        await #expect(throws: TranscodingError.self) {
-            try await engine.transcode(
-                input: URL(
-                    fileURLWithPath: "/input.mp4"
-                ),
-                outputDirectory: URL(
-                    fileURLWithPath: "/output"
+    #if !canImport(AVFoundation)
+        @Test("transcode throws on non-Apple platforms")
+        func transcodeThrowsOnLinux() async {
+            let engine = HLSEngine()
+            await #expect(throws: TranscodingError.self) {
+                try await engine.transcode(
+                    input: URL(
+                        fileURLWithPath: "/input.mp4"
+                    ),
+                    outputDirectory: URL(
+                        fileURLWithPath: "/output"
+                    )
                 )
-            )
+            }
         }
-    }
 
-    @Test("transcodeVariants throws transcoderNotAvailable")
-    func transcodeVariantsThrows() async {
-        let engine = HLSEngine()
-        await #expect(throws: TranscodingError.self) {
-            try await engine.transcodeVariants(
-                input: URL(
-                    fileURLWithPath: "/input.mp4"
-                ),
-                outputDirectory: URL(
-                    fileURLWithPath: "/output"
+        @Test("transcodeVariants throws on non-Apple platforms")
+        func transcodeVariantsThrowsOnLinux() async {
+            let engine = HLSEngine()
+            await #expect(throws: TranscodingError.self) {
+                try await engine.transcodeVariants(
+                    input: URL(
+                        fileURLWithPath: "/input.mp4"
+                    ),
+                    outputDirectory: URL(
+                        fileURLWithPath: "/output"
+                    )
                 )
-            )
+            }
         }
-    }
+    #endif
+
+    #if canImport(AVFoundation)
+        @Test("transcode throws for non-existent source")
+        func transcodeInvalidSourceApple() async {
+            let engine = HLSEngine()
+            await #expect(throws: TranscodingError.self) {
+                try await engine.transcode(
+                    input: URL(
+                        fileURLWithPath: "/nonexistent/file.mp4"
+                    ),
+                    outputDirectory: URL(
+                        fileURLWithPath: "/tmp/output"
+                    )
+                )
+            }
+        }
+
+        @Test("transcodeVariants throws for non-existent source")
+        func transcodeVariantsInvalidSourceApple() async {
+            let engine = HLSEngine()
+            await #expect(throws: TranscodingError.self) {
+                try await engine.transcodeVariants(
+                    input: URL(
+                        fileURLWithPath: "/nonexistent/file.mp4"
+                    ),
+                    outputDirectory: URL(
+                        fileURLWithPath: "/tmp/output"
+                    )
+                )
+            }
+        }
+    #endif
 }
