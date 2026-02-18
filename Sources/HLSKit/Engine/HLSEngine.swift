@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Atelier Socle SAS
 
+import Foundation
+
 /// A high-level facade that combines parsing, generation, and validation.
 ///
 /// ``HLSEngine`` provides a single entry point for the most common
@@ -163,5 +165,54 @@ public struct HLSEngine: Sendable {
     ) throws(ParserError) -> String {
         let manifest = try parser.parse(string)
         return generator.generate(manifest)
+    }
+
+    // MARK: - Segmentation
+
+    /// Segment MP4 data into HLS fMP4 fragments.
+    ///
+    /// - Parameters:
+    ///   - data: The MP4 file data.
+    ///   - config: Segmentation configuration.
+    /// - Returns: The segmentation result.
+    /// - Throws: `MP4Error` if the data is not valid MP4.
+    public func segment(
+        data: Data,
+        config: SegmentationConfig = SegmentationConfig()
+    ) throws(MP4Error) -> SegmentationResult {
+        try MP4Segmenter().segment(data: data, config: config)
+    }
+
+    /// Segment an MP4 file from a URL.
+    ///
+    /// - Parameters:
+    ///   - url: The file URL of the MP4.
+    ///   - config: Segmentation configuration.
+    /// - Returns: The segmentation result.
+    /// - Throws: `MP4Error` if the file cannot be read or is invalid.
+    public func segment(
+        url: URL,
+        config: SegmentationConfig = SegmentationConfig()
+    ) throws(MP4Error) -> SegmentationResult {
+        try MP4Segmenter().segment(url: url, config: config)
+    }
+
+    /// Segment and write output files to a directory.
+    ///
+    /// - Parameters:
+    ///   - data: The MP4 file data.
+    ///   - outputDirectory: Directory to write files to.
+    ///   - config: Segmentation configuration.
+    /// - Returns: The segmentation result.
+    /// - Throws: `MP4Error` if segmentation or I/O fails.
+    public func segmentToDirectory(
+        data: Data,
+        outputDirectory: URL,
+        config: SegmentationConfig = SegmentationConfig()
+    ) throws(MP4Error) -> SegmentationResult {
+        try MP4Segmenter().segmentToDirectory(
+            data: data, outputDirectory: outputDirectory,
+            config: config
+        )
     }
 }
