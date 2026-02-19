@@ -35,10 +35,10 @@
 
             @Test(
                 "FFmpeg transcode audio file produces result",
+                .enabled(if: FFmpegTranscoder.isAvailable),
                 .timeLimit(.minutes(1))
             )
             func transcodeAudio() async throws {
-                try requireFFmpeg()
                 defer { cleanup() }
 
                 let sourceURL = tempDir.appendingPathComponent(
@@ -72,10 +72,10 @@
 
             @Test(
                 "FFmpeg transcode reports progress values",
+                .enabled(if: FFmpegTranscoder.isAvailable),
                 .timeLimit(.minutes(1))
             )
             func transcodeWithProgress() async throws {
-                try requireFFmpeg()
                 defer { cleanup() }
 
                 let sourceURL = tempDir.appendingPathComponent(
@@ -118,9 +118,11 @@
 
         // MARK: - Error Cases
 
-        @Test("Transcode nonexistent file throws sourceNotFound")
+        @Test(
+            "Transcode nonexistent file throws sourceNotFound",
+            .enabled(if: FFmpegTranscoder.isAvailable)
+        )
         func transcodeNonexistent() async throws {
-            try requireFFmpeg()
             defer { cleanup() }
 
             let transcoder = try FFmpegTranscoder()
@@ -135,15 +137,6 @@
                     progress: nil
                 )
             }
-        }
-
-        // MARK: - Helpers
-
-        private func requireFFmpeg() throws {
-            try #require(
-                FFmpegTranscoder.isAvailable,
-                "FFmpeg not installed — skipping"
-            )
         }
     }
 

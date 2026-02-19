@@ -29,23 +29,16 @@
             try? FileManager.default.removeItem(at: tempDir)
         }
 
-        private func requireFFmpeg() throws {
-            try #require(
-                FFmpegProcessRunner.isAvailable,
-                "FFmpeg not installed — skipping"
-            )
-        }
-
         // MARK: - Audio Transcoding
 
         #if canImport(AVFoundation)
 
             @Test(
                 "Transcode audio M4A → AAC segments",
+                .enabled(if: FFmpegProcessRunner.isAvailable),
                 .timeLimit(.minutes(1))
             )
             func transcodeAudioToAAC() async throws {
-                try requireFFmpeg()
                 defer { cleanup() }
 
                 let sourceURL = tempDir.appendingPathComponent(
@@ -77,10 +70,10 @@
 
             @Test(
                 "Transcode with progress reporting",
+                .enabled(if: FFmpegProcessRunner.isAvailable),
                 .timeLimit(.minutes(1))
             )
             func transcodeWithProgress() async throws {
-                try requireFFmpeg()
                 defer { cleanup() }
 
                 let sourceURL = tempDir.appendingPathComponent(
@@ -119,10 +112,10 @@
 
             @Test(
                 "Transcode audio-only → no video track",
+                .enabled(if: FFmpegProcessRunner.isAvailable),
                 .timeLimit(.minutes(1))
             )
             func transcodeAudioOnlyNoVideo() async throws {
-                try requireFFmpeg()
                 defer { cleanup() }
 
                 let sourceURL = tempDir.appendingPathComponent(
@@ -153,10 +146,10 @@
 
             @Test(
                 "Transcode with MPEG-TS container format",
+                .enabled(if: FFmpegProcessRunner.isAvailable),
                 .timeLimit(.minutes(1))
             )
             func transcodeMPEGTS() async throws {
-                try requireFFmpeg()
                 defer { cleanup() }
 
                 let sourceURL = tempDir.appendingPathComponent(
@@ -186,10 +179,10 @@
 
             @Test(
                 "Transcode with audio passthrough",
+                .enabled(if: FFmpegProcessRunner.isAvailable),
                 .timeLimit(.minutes(1))
             )
             func transcodePassthrough() async throws {
-                try requireFFmpeg()
                 defer { cleanup() }
 
                 let sourceURL = tempDir.appendingPathComponent(
@@ -218,10 +211,10 @@
 
             @Test(
                 "ffprobe source analysis returns valid info",
+                .enabled(if: FFmpegProcessRunner.isAvailable),
                 .timeLimit(.minutes(1))
             )
             func ffprobeAnalysis() async throws {
-                try requireFFmpeg()
                 defer { cleanup() }
 
                 let sourceURL = tempDir.appendingPathComponent(
@@ -247,9 +240,11 @@
 
         // MARK: - Error Cases
 
-        @Test("Error: non-existent source file")
+        @Test(
+            "Error: non-existent source file",
+            .enabled(if: FFmpegProcessRunner.isAvailable)
+        )
         func nonExistentSource() async throws {
-            try requireFFmpeg()
             defer { cleanup() }
 
             let transcoder = try FFmpegTranscoder()
@@ -267,9 +262,11 @@
             }
         }
 
-        @Test("Error: auto-creates output directory")
+        @Test(
+            "Error: auto-creates output directory",
+            .enabled(if: FFmpegProcessRunner.isAvailable)
+        )
         func autoCreatesOutputDir() async throws {
-            try requireFFmpeg()
             defer { cleanup() }
 
             #if canImport(AVFoundation)

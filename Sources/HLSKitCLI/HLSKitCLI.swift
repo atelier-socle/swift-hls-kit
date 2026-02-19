@@ -4,8 +4,9 @@
 import HLSKitCommands
 
 @main
-struct CLI {
-    static func main() async throws {
+@available(macOS 14, iOS 17, tvOS 17, watchOS 10, macCatalyst 17, visionOS 1, *)
+struct HLSKitCLI {
+    static func main() async {
         await HLSKitCommand.main()
     }
 }

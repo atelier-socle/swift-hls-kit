@@ -211,9 +211,8 @@ struct VideoProfileShowcase {
 @Suite("Transcoding Showcase — FFmpeg")
 struct FFmpegTranscodingShowcase {
 
-    @Test("FFmpegTranscoder — availability check")
-    func ffmpegAvailability() throws {
-        try #require(FFmpegTranscoder.isAvailable, "Skip: ffmpeg not installed")
+    @Test("FFmpegTranscoder — availability check", .enabled(if: FFmpegTranscoder.isAvailable))
+    func ffmpegAvailability() {
         #expect(FFmpegTranscoder.isAvailable == true)
     }
 

@@ -17,7 +17,7 @@ let package = Package(
             name: "HLSKit",
             targets: ["HLSKit"]),
         .executable(
-            name: "hlskit",
+            name: "hlskit-cli",
             targets: ["HLSKitCLI"])
     ],
     dependencies: [

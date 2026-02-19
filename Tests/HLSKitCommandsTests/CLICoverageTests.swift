@@ -84,10 +84,10 @@ struct HLSKitCommandRootTests {
         #expect(HLSKitCommand.configuration.version == "0.1.0")
     }
 
-    @Test("Root command name is hlskit")
+    @Test("Root command name is hlskit-cli")
     func commandName() {
         #expect(
-            HLSKitCommand.configuration.commandName == "hlskit"
+            HLSKitCommand.configuration.commandName == "hlskit-cli"
         )
     }
 }

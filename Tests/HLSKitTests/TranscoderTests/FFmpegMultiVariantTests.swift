@@ -28,23 +28,16 @@
             try? FileManager.default.removeItem(at: tempDir)
         }
 
-        private func requireFFmpeg() throws {
-            try #require(
-                FFmpegProcessRunner.isAvailable,
-                "FFmpeg not installed — skipping"
-            )
-        }
-
         // MARK: - Multi-Variant Transcoding
 
         #if canImport(AVFoundation)
 
             @Test(
                 "transcodeVariants produces multiple outputs",
+                .enabled(if: FFmpegProcessRunner.isAvailable),
                 .timeLimit(.minutes(2))
             )
             func multipleOutputs() async throws {
-                try requireFFmpeg()
                 defer { cleanup() }
 
                 let sourceURL = tempDir.appendingPathComponent(
@@ -95,10 +88,10 @@
 
             @Test(
                 "transcodeVariants generates master playlist",
+                .enabled(if: FFmpegProcessRunner.isAvailable),
                 .timeLimit(.minutes(2))
             )
             func masterPlaylist() async throws {
-                try requireFFmpeg()
                 defer { cleanup() }
 
                 let sourceURL = tempDir.appendingPathComponent(
@@ -134,10 +127,10 @@
 
             @Test(
                 "Multi-variant master playlist parseable by ManifestParser",
+                .enabled(if: FFmpegProcessRunner.isAvailable),
                 .timeLimit(.minutes(2))
             )
             func masterPlaylistParseable() async throws {
-                try requireFFmpeg()
                 defer { cleanup() }
 
                 let sourceURL = tempDir.appendingPathComponent(

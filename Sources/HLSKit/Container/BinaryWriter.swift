@@ -114,7 +114,7 @@ extension BinaryWriter {
     /// Write a fixed-point 16.16 number.
     ///
     /// - Parameter value: The floating-point value to encode.
-    public mutating func writeFixed16_16(_ value: Double) {
+    public mutating func writeFixedPoint16x16(_ value: Double) {
         let fixed = Int32(value * 65536.0)
         writeUInt32(UInt32(bitPattern: fixed))
     }

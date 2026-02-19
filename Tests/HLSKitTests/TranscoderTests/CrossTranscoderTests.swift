@@ -28,21 +28,14 @@
             try? FileManager.default.removeItem(at: tempDir)
         }
 
-        private func requireBoth() throws {
-            try #require(
-                FFmpegProcessRunner.isAvailable,
-                "FFmpeg not installed — skipping"
-            )
-        }
-
         // MARK: - Apple vs FFmpeg
 
         @Test(
             "Same audio source: both produce valid output",
+            .enabled(if: FFmpegProcessRunner.isAvailable),
             .timeLimit(.minutes(2))
         )
         func sameSourceBothValid() async throws {
-            try requireBoth()
             defer { cleanup() }
 
             let sourceURL = tempDir.appendingPathComponent(
@@ -93,10 +86,10 @@
 
         @Test(
             "Same source: segment counts similar",
+            .enabled(if: FFmpegProcessRunner.isAvailable),
             .timeLimit(.minutes(2))
         )
         func sameSourceSegmentCounts() async throws {
-            try requireBoth()
             defer { cleanup() }
 
             let sourceURL = tempDir.appendingPathComponent(

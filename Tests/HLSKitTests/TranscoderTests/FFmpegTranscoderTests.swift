@@ -135,10 +135,11 @@
 
         // MARK: - Source Validation
 
-        @Test("Transcode nonexistent source throws sourceNotFound")
+        @Test(
+            "Transcode nonexistent source throws sourceNotFound",
+            .enabled(if: FFmpegTranscoder.isAvailable)
+        )
         func transcodeNonexistentSource() async {
-            guard FFmpegTranscoder.isAvailable else { return }
-
             do {
                 let transcoder = try FFmpegTranscoder()
                 _ = try await transcoder.transcode(

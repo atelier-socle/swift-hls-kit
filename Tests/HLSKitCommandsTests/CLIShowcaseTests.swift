@@ -18,10 +18,10 @@ struct CLIRootShowcase {
         #expect(subs.count == 6)
     }
 
-    @Test("HLSKitCommand — command name is 'hlskit'")
+    @Test("HLSKitCommand — command name is 'hlskit-cli'")
     func commandName() {
         #expect(
-            HLSKitCommand.configuration.commandName == "hlskit"
+            HLSKitCommand.configuration.commandName == "hlskit-cli"
         )
     }
 }

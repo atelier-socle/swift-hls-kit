@@ -95,7 +95,7 @@ extension InitSegmentWriter {
         payload.writeUInt32(0)  // modification time
         payload.writeUInt32(timescale)
         payload.writeUInt32(0)  // duration = 0 (fragmented)
-        payload.writeFixed16_16(1.0)  // rate
+        payload.writeFixedPoint16x16(1.0)  // rate
         payload.writeUInt16(0x0100)  // volume (1.0 as 8.8)
         payload.writeZeros(10)  // reserved
         // Identity matrix (36 bytes)
@@ -145,8 +145,8 @@ extension InitSegmentWriter {
         writeIdentityMatrix(to: &payload)
         let width = Double(info.dimensions?.width ?? 0)
         let height = Double(info.dimensions?.height ?? 0)
-        payload.writeFixed16_16(width)
-        payload.writeFixed16_16(height)
+        payload.writeFixedPoint16x16(width)
+        payload.writeFixedPoint16x16(height)
         // flags 0x03 = track_enabled | track_in_movie
         var box = BinaryWriter()
         box.writeFullBox(

@@ -203,7 +203,7 @@ struct RFC8216MasterTests {
                     bandwidth: 800_000,
                     resolution: .p480,
                     uri: "v.m3u8",
-                    closedCaptions: .none
+                    closedCaptions: nil
                 )
             ]
         )

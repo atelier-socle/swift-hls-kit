@@ -165,19 +165,19 @@ struct BinaryWriterTests {
         #expect(writer.count == 0)
     }
 
-    @Test("writeFixed16_16 — integer value roundtrip")
-    func writeFixed16_16Integer() throws {
+    @Test("writeFixedPoint16x16 — integer value roundtrip")
+    func writeFixedPoint16x16Integer() throws {
         var writer = BinaryWriter()
-        writer.writeFixed16_16(1.0)
+        writer.writeFixedPoint16x16(1.0)
         var reader = BinaryReader(data: writer.data)
         let value = try reader.readFixedPoint16x16()
         #expect(value == 1.0)
     }
 
-    @Test("writeFixed16_16 — fractional value roundtrip")
-    func writeFixed16_16Fractional() throws {
+    @Test("writeFixedPoint16x16 — fractional value roundtrip")
+    func writeFixedPoint16x16Fractional() throws {
         var writer = BinaryWriter()
-        writer.writeFixed16_16(1.5)
+        writer.writeFixedPoint16x16(1.5)
         var reader = BinaryReader(data: writer.data)
         let value = try reader.readFixedPoint16x16()
         #expect(value == 1.5)
