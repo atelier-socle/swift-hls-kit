@@ -6,7 +6,7 @@ import Foundation
 /// Errors during HLS segment encryption and decryption operations.
 ///
 /// Each case provides contextual information about the failure,
-/// accessible via the ``LocalizedError`` conformance.
+/// accessible via the `LocalizedError` conformance.
 ///
 /// - SeeAlso: ``SegmentEncryptor``, ``KeyManager``
 public enum EncryptionError: Error, Sendable, Hashable {
