@@ -51,7 +51,7 @@ struct ManifestGenerateCommand: AsyncParsableCommand {
         }
 
         var isDir: ObjCBool = false
-        FileManager.default.fileExists(
+        _ = FileManager.default.fileExists(
             atPath: input, isDirectory: &isDir
         )
 

@@ -17,7 +17,7 @@ public enum ColorOutput: Sendable {
 
     /// Whether color output is enabled (stdout is a TTY).
     public static var isEnabled: Bool {
-        isatty(fileno(stdout)) != 0
+        isatty(STDOUT_FILENO) != 0
     }
 
     /// Format text as green (success).
