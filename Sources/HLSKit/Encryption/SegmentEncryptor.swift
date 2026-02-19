@@ -1,0 +1,207 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Atelier Socle SAS
+
+import Foundation
+
+/// Encrypts and decrypts HLS media segments using AES-128-CBC.
+///
+/// ## Single Segment
+///
+/// ```swift
+/// let encryptor = SegmentEncryptor()
+/// let key = try KeyManager().generateKey()
+/// let iv = KeyManager().deriveIV(fromSequenceNumber: 0)
+/// let encrypted = try encryptor.encrypt(
+///     segmentData: rawData, key: key, iv: iv
+/// )
+/// ```
+///
+/// ## Batch Encryption
+///
+/// ```swift
+/// let encryptedResult = try encryptor.encryptSegments(
+///     result: segmentationResult,
+///     config: encryptionConfig
+/// )
+/// ```
+///
+/// - SeeAlso: ``EncryptionConfig``, ``KeyManager``
+public struct SegmentEncryptor: Sendable {
+
+    private let cryptoProvider: CryptoProvider
+    private let keyManager: KeyManager
+
+    /// Initialize with the default platform crypto provider.
+    public init() {
+        self.cryptoProvider = defaultCryptoProvider()
+        self.keyManager = KeyManager()
+    }
+
+    /// Initialize with a custom crypto provider (for testing).
+    ///
+    /// - Parameter cryptoProvider: The crypto implementation to use.
+    init(cryptoProvider: CryptoProvider) {
+        self.cryptoProvider = cryptoProvider
+        self.keyManager = KeyManager()
+    }
+
+    // MARK: - Single Segment
+
+    /// Encrypt a single segment's data.
+    ///
+    /// - Parameters:
+    ///   - segmentData: Raw segment data.
+    ///   - key: 16-byte AES key.
+    ///   - iv: 16-byte initialization vector.
+    /// - Returns: Encrypted segment data with PKCS#7 padding.
+    /// - Throws: ``EncryptionError``
+    public func encrypt(
+        segmentData: Data, key: Data, iv: Data
+    ) throws -> Data {
+        try cryptoProvider.encrypt(segmentData, key: key, iv: iv)
+    }
+
+    /// Decrypt a single segment's data.
+    ///
+    /// - Parameters:
+    ///   - segmentData: Encrypted segment data.
+    ///   - key: 16-byte AES key.
+    ///   - iv: 16-byte initialization vector.
+    /// - Returns: Decrypted plaintext data.
+    /// - Throws: ``EncryptionError``
+    public func decrypt(
+        segmentData: Data, key: Data, iv: Data
+    ) throws -> Data {
+        try cryptoProvider.decrypt(segmentData, key: key, iv: iv)
+    }
+
+    // MARK: - Batch Encryption
+
+    /// Encrypt all segments from a segmentation result.
+    ///
+    /// Reads each segment's data, encrypts it in-place, optionally
+    /// writes the key file, and returns an updated result with an
+    /// encrypted playlist.
+    ///
+    /// - Parameters:
+    ///   - result: Segmentation result from MP4Segmenter or TSSegmenter.
+    ///   - config: Encryption configuration.
+    /// - Returns: Updated segmentation result with encrypted data.
+    /// - Throws: ``EncryptionError``
+    public func encryptSegments(
+        result: SegmentationResult,
+        config: EncryptionConfig
+    ) throws -> SegmentationResult {
+        guard config.method == .aes128 else {
+            throw EncryptionError.unsupportedMethod(
+                config.method.rawValue
+            )
+        }
+
+        let key = try config.key ?? keyManager.generateKey()
+        var encryptedSegments: [MediaSegmentOutput] = []
+
+        for (index, segment) in result.mediaSegments.enumerated() {
+            let iv = resolveIV(
+                config: config, segmentIndex: index
+            )
+            let encrypted = try cryptoProvider.encrypt(
+                segment.data, key: key, iv: iv
+            )
+            encryptedSegments.append(
+                MediaSegmentOutput(
+                    index: segment.index,
+                    data: encrypted,
+                    duration: segment.duration,
+                    filename: segment.filename,
+                    byteRangeOffset: segment.byteRangeOffset,
+                    byteRangeLength: segment.byteRangeLength
+                )
+            )
+        }
+
+        let builder = EncryptedPlaylistBuilder()
+        let playlist: String?
+        if let original = result.playlist {
+            playlist = builder.addEncryptionTags(
+                to: original,
+                config: config,
+                segmentCount: encryptedSegments.count
+            )
+        } else {
+            playlist = nil
+        }
+
+        return SegmentationResult(
+            initSegment: result.initSegment,
+            mediaSegments: encryptedSegments,
+            playlist: playlist,
+            fileInfo: result.fileInfo,
+            config: result.config
+        )
+    }
+
+    /// Encrypt segment files in a directory.
+    ///
+    /// Reads each segment file, encrypts it, writes it back,
+    /// and optionally writes the key file.
+    ///
+    /// - Parameters:
+    ///   - directory: Directory containing segment files.
+    ///   - segmentFilenames: Ordered list of segment filenames.
+    ///   - config: Encryption configuration.
+    /// - Returns: The encryption key used.
+    /// - Throws: ``EncryptionError``
+    public func encryptDirectory(
+        _ directory: URL,
+        segmentFilenames: [String],
+        config: EncryptionConfig
+    ) throws -> Data {
+        guard config.method == .aes128 else {
+            throw EncryptionError.unsupportedMethod(
+                config.method.rawValue
+            )
+        }
+
+        let key = try config.key ?? keyManager.generateKey()
+
+        for (index, filename) in segmentFilenames.enumerated() {
+            let fileURL = directory.appendingPathComponent(filename)
+            let data: Data
+            do {
+                data = try Data(contentsOf: fileURL)
+            } catch {
+                throw EncryptionError.segmentNotFound(
+                    fileURL.path
+                )
+            }
+            let iv = resolveIV(
+                config: config, segmentIndex: index
+            )
+            let encrypted = try cryptoProvider.encrypt(
+                data, key: key, iv: iv
+            )
+            try encrypted.write(to: fileURL)
+        }
+
+        if config.writeKeyFile {
+            let keyURL = directory.appendingPathComponent("key.bin")
+            try keyManager.writeKey(key, to: keyURL)
+        }
+
+        return key
+    }
+
+    // MARK: - Private
+
+    private func resolveIV(
+        config: EncryptionConfig, segmentIndex: Int
+    ) -> Data {
+        if let explicitIV = config.iv {
+            return explicitIV
+        }
+        return keyManager.deriveIV(
+            fromSequenceNumber: UInt64(segmentIndex)
+        )
+    }
+}
