@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Atelier Socle SAS
 
-#if canImport(AVFoundation)
+#if canImport(AVFoundation) && !os(watchOS)
     @preconcurrency import AVFoundation
 
     /// Analyzes source media properties for transcoding decisions.

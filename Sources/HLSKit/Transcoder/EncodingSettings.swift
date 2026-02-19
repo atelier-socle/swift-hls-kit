@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Atelier Socle SAS
 
-#if canImport(AVFoundation)
+#if canImport(AVFoundation) && !os(watchOS)
     import AVFoundation
 
     /// Builds AVFoundation encoding settings from HLSKit configuration types.

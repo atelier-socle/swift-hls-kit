@@ -12,7 +12,7 @@ extension HLSEngine {
     /// Returns `true` on Apple platforms (AVFoundation available)
     /// or when FFmpeg is installed on macOS/Linux.
     public var isTranscoderAvailable: Bool {
-        #if canImport(AVFoundation)
+        #if canImport(AVFoundation) && !os(watchOS)
             return AppleTranscoder.isAvailable
         #elseif os(macOS) || os(Linux)
             return FFmpegTranscoder.isAvailable
@@ -43,7 +43,7 @@ extension HLSEngine {
         config: TranscodingConfig = TranscodingConfig(),
         progress: (@Sendable (Double) -> Void)? = nil
     ) async throws -> TranscodingResult {
-        #if canImport(AVFoundation)
+        #if canImport(AVFoundation) && !os(watchOS)
             let transcoder = AppleTranscoder()
             let result = try await transcoder.transcodeVariants(
                 input: input,
@@ -94,7 +94,7 @@ extension HLSEngine {
         config: TranscodingConfig = TranscodingConfig(),
         progress: (@Sendable (Double) -> Void)? = nil
     ) async throws -> MultiVariantResult {
-        #if canImport(AVFoundation)
+        #if canImport(AVFoundation) && !os(watchOS)
             let transcoder = AppleTranscoder()
             return try await transcoder.transcodeVariants(
                 input: input,

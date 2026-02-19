@@ -104,7 +104,7 @@ let config = TranscodingConfig()
 On macOS and iOS, use hardware-accelerated VideoToolbox:
 
 ```swift
-#if canImport(AVFoundation)
+#if canImport(AVFoundation) && !os(watchOS)
 let transcoder = AppleTranscoder()
 // AppleTranscoder.isAvailable == true
 // AppleTranscoder.name == "Apple VideoToolbox"
