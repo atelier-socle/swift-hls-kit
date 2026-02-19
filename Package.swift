@@ -15,16 +15,32 @@ let package = Package(
     products: [
         .library(
             name: "HLSKit",
-            targets: ["HLSKit"])
+            targets: ["HLSKit"]),
+        .executable(
+            name: "hlskit",
+            targets: ["HLSKitCLI"])
     ],
     dependencies: [
-        .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.3")
+        .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.3"),
+        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.7.0")
     ],
     targets: [
         .target(
             name: "HLSKit"),
+        .target(
+            name: "HLSKitCommands",
+            dependencies: [
+                "HLSKit",
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ]),
+        .executableTarget(
+            name: "HLSKitCLI",
+            dependencies: ["HLSKitCommands"]),
         .testTarget(
             name: "HLSKitTests",
-            dependencies: ["HLSKit"])
+            dependencies: ["HLSKit"]),
+        .testTarget(
+            name: "HLSKitCommandsTests",
+            dependencies: ["HLSKitCommands"])
     ]
 )
