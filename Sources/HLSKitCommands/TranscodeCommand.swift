@@ -108,9 +108,31 @@ struct TranscodeCommand: AsyncParsableCommand {
         }
 
         let config = TranscodingConfig(
-            segmentDuration: duration
+            segmentDuration: duration,
+            audioPassthrough: false
         )
 
+        try await executeTranscode(
+            engine: engine,
+            inputURL: inputURL,
+            outputURL: outputURL,
+            variants: variants,
+            config: config
+        )
+    }
+}
+
+// MARK: - Transcoding Execution
+
+extension TranscodeCommand {
+
+    private func executeTranscode(
+        engine: HLSEngine,
+        inputURL: URL,
+        outputURL: URL,
+        variants: [QualityPreset],
+        config: TranscodingConfig
+    ) async throws {
         if variants.count == 1, let single = variants.first {
             let result = try await engine.transcode(
                 input: inputURL,

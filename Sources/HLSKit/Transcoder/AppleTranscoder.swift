@@ -46,9 +46,8 @@
             let startTime = CFAbsoluteTimeGetCurrent()
 
             let sourceInfo = try await SourceAnalyzer.analyze(input)
-            let preset = resolvePreset(
-                config: config, source: sourceInfo
-            )
+            let preset: QualityPreset =
+                sourceInfo.hasVideo ? .p720 : .audioOnly
             let effectivePreset = SourceAnalyzer.effectivePreset(
                 preset, source: sourceInfo
             )
@@ -106,13 +105,10 @@
                 let variantDir =
                     outputDirectory
                     .appendingPathComponent(preset.name)
-                let variantConfig = configWith(
-                    preset: preset, base: config
-                )
                 let variantResult = try await transcode(
                     input: input,
                     outputDirectory: variantDir,
-                    config: variantConfig,
+                    config: config,
                     progress: { variantProgress in
                         let base = Double(index) / totalVariants
                         let scaled =
@@ -163,6 +159,14 @@
                 ? tracks.first(where: { $0.mediaType == .audio })
                 : nil
 
+            var audioFormatHint: CMFormatDescription?
+            if let audioTrack {
+                let descs = try await audioTrack.load(
+                    .formatDescriptions
+                )
+                audioFormatHint = descs.first
+            }
+
             let reader = try AVAssetReader(asset: asset)
             let writer = try AVAssetWriter(
                 outputURL: job.output, fileType: .mp4
@@ -189,7 +193,9 @@
                     track: audioTrack,
                     preset: job.preset,
                     config: job.config,
-                    writer: writer
+                    writer: writer,
+                    sourceFormatHint: audioFormatHint,
+                    sourceInfo: job.sourceInfo
                 )
             )
 
@@ -273,16 +279,24 @@
             track: AVAssetTrack?,
             preset: QualityPreset,
             config: TranscodingConfig,
-            writer: AVAssetWriter
+            writer: AVAssetWriter,
+            sourceFormatHint: CMFormatDescription? = nil,
+            sourceInfo: SourceAnalyzer.SourceInfo? = nil
         ) -> AVAssetWriterInput? {
             guard track != nil else { return nil }
 
-            let settings = EncodingSettings.audioSettings(
+            var settings = EncodingSettings.audioSettings(
                 preset: preset, config: config
             )
 
+            if var s = settings, let info = sourceInfo {
+                info.audioChannels.map { s[AVNumberOfChannelsKey] = $0 }
+                info.audioSampleRate.map { s[AVSampleRateKey] = Int($0) }
+                settings = s
+            }
+
             let input: AVAssetWriterInput
-            if settings != nil {
+            if let settings {
                 input = AVAssetWriterInput(
                     mediaType: .audio,
                     outputSettings: settings
@@ -290,7 +304,8 @@
             } else {
                 input = AVAssetWriterInput(
                     mediaType: .audio,
-                    outputSettings: nil
+                    outputSettings: nil,
+                    sourceFormatHint: sourceFormatHint
                 )
             }
             input.expectsMediaDataInRealTime = false
@@ -346,23 +361,6 @@
     // MARK: - Helpers
 
     extension AppleTranscoder {
-
-        private func resolvePreset(
-            config: TranscodingConfig,
-            source: SourceAnalyzer.SourceInfo
-        ) -> QualityPreset {
-            if source.hasVideo {
-                return .p720
-            }
-            return .audioOnly
-        }
-
-        private func configWith(
-            preset: QualityPreset,
-            base: TranscodingConfig
-        ) -> TranscodingConfig {
-            base
-        }
 
         private func prepareOutputDirectory(
             _ url: URL
