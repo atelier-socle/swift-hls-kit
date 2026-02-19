@@ -69,7 +69,7 @@
             config: TranscodingConfig,
             progress: (@Sendable (Double) -> Void)?
         ) async throws -> TranscodingResult {
-            let startTime = CFAbsoluteTimeGetCurrent()
+            let startTime = Date().timeIntervalSinceReferenceDate
 
             try validateSource(input)
             try prepareOutputDirectory(outputDirectory)
@@ -108,7 +108,7 @@
             )
 
             let outputSize = fileSize(at: tempURL)
-            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+            let elapsed = Date().timeIntervalSinceReferenceDate - startTime
 
             try? FileManager.default.removeItem(at: tempURL)
 
