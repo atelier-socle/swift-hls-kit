@@ -49,6 +49,7 @@ jobs:
       - name: Build
         run: swift build
       - name: Test with Coverage
+        timeout-minutes: 15
         run: swift test --enable-code-coverage
       - name: Coverage Report
         run: |

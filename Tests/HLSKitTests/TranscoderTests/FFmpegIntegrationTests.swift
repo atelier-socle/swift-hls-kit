@@ -11,7 +11,13 @@
 
     @testable import HLSKit
 
-    @Suite("FFmpegTranscoder — Integration")
+    @Suite(
+        "FFmpegTranscoder — Integration",
+        .enabled(
+            if: ProcessInfo.processInfo.environment["CI"] == nil,
+            "Skipped in CI — requires hardware media processing"
+        )
+    )
     struct FFmpegIntegrationTests {
 
         private let tempDir: URL

@@ -7,7 +7,13 @@
 
     @testable import HLSKit
 
-    @Suite("MediaFixtureGenerator")
+    @Suite(
+        "MediaFixtureGenerator",
+        .enabled(
+            if: ProcessInfo.processInfo.environment["CI"] == nil,
+            "Skipped in CI — requires hardware media processing"
+        )
+    )
     struct MediaFixtureTests {
 
         init() throws {

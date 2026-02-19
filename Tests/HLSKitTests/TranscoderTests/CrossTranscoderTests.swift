@@ -8,7 +8,13 @@
 
     @testable import HLSKit
 
-    @Suite("Cross-Transcoder Comparison")
+    @Suite(
+        "Cross-Transcoder Comparison",
+        .enabled(
+            if: ProcessInfo.processInfo.environment["CI"] == nil,
+            "Skipped in CI — requires hardware media processing"
+        )
+    )
     struct CrossTranscoderTests {
 
         private let tempDir: URL

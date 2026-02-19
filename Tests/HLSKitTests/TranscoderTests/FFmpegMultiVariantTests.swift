@@ -8,7 +8,13 @@
 
     @testable import HLSKit
 
-    @Suite("FFmpeg Multi-Variant")
+    @Suite(
+        "FFmpeg Multi-Variant",
+        .enabled(
+            if: ProcessInfo.processInfo.environment["CI"] == nil,
+            "Skipped in CI — requires hardware media processing"
+        )
+    )
     struct FFmpegMultiVariantTests {
 
         private let tempDir: URL

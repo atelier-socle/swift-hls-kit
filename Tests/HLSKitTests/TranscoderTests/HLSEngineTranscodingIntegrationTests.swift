@@ -7,7 +7,13 @@
 
     @testable import HLSKit
 
-    @Suite("HLSEngine Transcoding — Integration")
+    @Suite(
+        "HLSEngine Transcoding — Integration",
+        .enabled(
+            if: ProcessInfo.processInfo.environment["CI"] == nil,
+            "Skipped in CI — requires hardware media processing"
+        )
+    )
     struct HLSEngineTranscodingIntegrationTests {
 
         private let tempDir: URL

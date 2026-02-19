@@ -11,7 +11,13 @@
 
     @testable import HLSKit
 
-    @Suite("FFmpeg End-to-End")
+    @Suite(
+        "FFmpeg End-to-End",
+        .enabled(
+            if: ProcessInfo.processInfo.environment["CI"] == nil,
+            "Skipped in CI — requires hardware media processing"
+        )
+    )
     struct FFmpegEndToEndTests {
 
         private let tempDir: URL

@@ -10,7 +10,13 @@
 
     @testable import HLSKit
 
-    @Suite("AppleTranscoder — Pipeline")
+    @Suite(
+        "AppleTranscoder — Pipeline",
+        .enabled(
+            if: ProcessInfo.processInfo.environment["CI"] == nil,
+            "Skipped in CI — requires hardware media processing"
+        )
+    )
     struct AppleTranscoderPipelineTests {
 
         private let tempDir: URL
