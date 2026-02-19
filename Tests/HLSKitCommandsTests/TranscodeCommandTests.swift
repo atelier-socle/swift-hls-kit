@@ -84,10 +84,35 @@ struct TranscodeCommandTests {
         #expect(cmd.duration == 8.0)
     }
 
-    @Test("Missing required input throws")
-    func missingInput() {
-        #expect(throws: (any Error).self) {
-            _ = try TranscodeCommand.parse([])
-        }
+    @Test("No arguments parses with nil input (for --list-presets)")
+    func noArgsNilInput() throws {
+        let cmd = try TranscodeCommand.parse([])
+        #expect(cmd.input == nil)
+        #expect(cmd.listPresets == false)
+    }
+
+    @Test("Parse --list-presets flag")
+    func parseListPresets() throws {
+        let cmd = try TranscodeCommand.parse(["--list-presets"])
+        #expect(cmd.listPresets == true)
+        #expect(cmd.input == nil)
+    }
+
+    @Test("Preset aliases: low, medium, high")
+    func presetAliases() throws {
+        let low = try TranscodeCommand.parse([
+            "input.mp4", "--preset", "low"
+        ])
+        #expect(low.preset == "low")
+
+        let med = try TranscodeCommand.parse([
+            "input.mp4", "--preset", "medium"
+        ])
+        #expect(med.preset == "medium")
+
+        let high = try TranscodeCommand.parse([
+            "input.mp4", "--preset", "high"
+        ])
+        #expect(high.preset == "high")
     }
 }

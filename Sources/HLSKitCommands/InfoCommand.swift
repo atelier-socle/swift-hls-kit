@@ -85,6 +85,30 @@ extension InfoCommand {
         filename: String,
         formatter: OutputFormatter
     ) {
+        if formatter == .json {
+            var dict: [String: Any] = [
+                "file": filename,
+                "type": "HLS Master Playlist",
+                "variantCount": master.variants.count,
+                "variants": master.variants.enumerated()
+                    .map { i, v -> [String: Any] in
+                        [
+                            "index": i + 1,
+                            "resolution": v.resolution.map {
+                                "\($0.width)x\($0.height)"
+                            } ?? "audio",
+                            "bandwidth": v.bandwidth,
+                            "uri": v.uri
+                        ]
+                    }
+            ]
+            if let v = master.version {
+                dict["version"] = v.rawValue
+            }
+            printJSON(dict)
+            return
+        }
+
         var pairs: [(String, String)] = [
             ("File:", filename),
             ("Type:", "HLS Master Playlist"),
@@ -116,6 +140,30 @@ extension InfoCommand {
         filename: String,
         formatter: OutputFormatter
     ) {
+        let totalDuration = media.segments.reduce(0.0) {
+            $0 + $1.duration
+        }
+
+        if formatter == .json {
+            var dict: [String: Any] = [
+                "file": filename,
+                "type": "HLS Media Playlist",
+                "segmentCount": media.segments.count,
+                "targetDuration": media.targetDuration,
+                "totalDuration": Double(
+                    String(format: "%.1f", totalDuration)
+                ) ?? totalDuration
+            ]
+            if let v = media.version {
+                dict["version"] = v.rawValue
+            }
+            if let pt = media.playlistType {
+                dict["playlistType"] = pt.rawValue
+            }
+            printJSON(dict)
+            return
+        }
+
         var pairs: [(String, String)] = [
             ("File:", filename),
             ("Type:", "HLS Media Playlist"),
@@ -130,9 +178,6 @@ extension InfoCommand {
             pairs.append(("Playlist type:", pType.rawValue))
         }
 
-        let totalDuration = media.segments.reduce(0.0) {
-            $0 + $1.duration
-        }
         pairs.append(
             (
                 "Total duration:",
@@ -155,6 +200,34 @@ extension InfoCommand {
         let boxes = try reader.readBoxes(from: data)
         let parser = MP4InfoParser()
         let info = try parser.parseFileInfo(from: boxes)
+
+        if formatter == .json {
+            printJSON(
+                [
+                    "file": url.lastPathComponent,
+                    "type": "MP4 container",
+                    "duration": String(
+                        format: "%.1fs", info.durationSeconds
+                    ),
+                    "brands": info.brands.joined(
+                        separator: ", "
+                    ),
+                    "trackCount": info.tracks.count,
+                    "tracks": info.tracks.map { t in
+                        var d: [String: Any] = [
+                            "index": t.trackId,
+                            "type": t.mediaType.rawValue,
+                            "codec": t.codec
+                        ]
+                        if let dims = t.dimensions {
+                            d["dimensions"] =
+                                "\(dims.width)x\(dims.height)"
+                        }
+                        return d
+                    }
+                ] as [String: Any])
+            return
+        }
 
         var pairs: [(String, String)] = [
             ("File:", url.lastPathComponent),
@@ -204,6 +277,18 @@ extension InfoCommand {
             $0.pathExtension == "m4s"
         }
 
+        if formatter == .json {
+            printJSON(
+                [
+                    "directory": url.lastPathComponent,
+                    "playlistCount": m3u8Files.count,
+                    "tsSegments": tsFiles.count,
+                    "fmp4Segments": m4sFiles.count,
+                    "playlists": m3u8Files.map(\.lastPathComponent)
+                ] as [String: Any])
+            return
+        }
+
         var pairs: [(String, String)] = [
             ("Directory:", url.lastPathComponent),
             ("M3U8 playlists:", "\(m3u8Files.count)"),
@@ -232,6 +317,19 @@ extension InfoCommand {
         return String(
             format: "%.0f kbps", Double(bps) / 1_000.0
         )
+    }
+
+    private func printJSON(_ object: Any) {
+        guard
+            let data = try? JSONSerialization.data(
+                withJSONObject: object,
+                options: [.prettyPrinted, .sortedKeys]
+            ),
+            let str = String(data: data, encoding: .utf8)
+        else {
+            return
+        }
+        print(str)
     }
 
     private func printErr(_ message: String) {

@@ -85,6 +85,11 @@ struct SegmentCommand: AsyncParsableCommand {
             print("")
         }
 
+        try FileManager.default.createDirectory(
+            at: outputURL,
+            withIntermediateDirectories: true
+        )
+
         let engine = HLSEngine()
         let result = try engine.segmentToDirectory(
             data: Data(contentsOf: inputURL),

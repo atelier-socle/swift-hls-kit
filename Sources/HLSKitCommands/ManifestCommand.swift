@@ -68,6 +68,30 @@ struct ManifestParseCommand: AsyncParsableCommand {
         _ master: MasterPlaylist,
         formatter: OutputFormatter
     ) {
+        if formatter == .json {
+            var dict: [String: Any] = [
+                "type": "Master Playlist",
+                "variantCount": master.variants.count,
+                "renditionGroups": master.renditions.count,
+                "variants": master.variants.enumerated()
+                    .map { i, v -> [String: Any] in
+                        [
+                            "index": i + 1,
+                            "resolution": v.resolution.map {
+                                "\($0.width)x\($0.height)"
+                            } ?? "audio",
+                            "bandwidth": v.bandwidth,
+                            "uri": v.uri
+                        ]
+                    }
+            ]
+            if let v = master.version {
+                dict["version"] = v.rawValue
+            }
+            printJSON(dict)
+            return
+        }
+
         var pairs: [(String, String)] = [
             ("Type:", "Master Playlist"),
             ("Variants:", "\(master.variants.count)")
@@ -101,6 +125,37 @@ struct ManifestParseCommand: AsyncParsableCommand {
         _ media: MediaPlaylist,
         formatter: OutputFormatter
     ) {
+        let total = media.segments.reduce(0.0) {
+            $0 + $1.duration
+        }
+
+        if formatter == .json {
+            var dict: [String: Any] = [
+                "type": "Media Playlist",
+                "targetDuration": media.targetDuration,
+                "segmentCount": media.segments.count,
+                "totalDuration": Double(
+                    String(format: "%.1f", total)
+                ) ?? total,
+                "segments": media.segments.enumerated()
+                    .map { i, seg -> [String: Any] in
+                        [
+                            "index": i,
+                            "uri": seg.uri,
+                            "duration": seg.duration
+                        ]
+                    }
+            ]
+            if let v = media.version {
+                dict["version"] = v.rawValue
+            }
+            if let pt = media.playlistType {
+                dict["playlistType"] = pt.rawValue
+            }
+            printJSON(dict)
+            return
+        }
+
         var pairs: [(String, String)] = [
             ("Type:", "Media Playlist"),
             ("Target duration:", "\(media.targetDuration)s"),
@@ -111,9 +166,6 @@ struct ManifestParseCommand: AsyncParsableCommand {
         }
         if let pType = media.playlistType {
             pairs.append(("Playlist type:", pType.rawValue))
-        }
-        let total = media.segments.reduce(0.0) {
-            $0 + $1.duration
         }
         pairs.append(
             (
@@ -131,6 +183,19 @@ struct ManifestParseCommand: AsyncParsableCommand {
         print(formatter.formatKeyValues(pairs))
     }
 
+    private func printJSON(_ object: Any) {
+        guard
+            let data = try? JSONSerialization.data(
+                withJSONObject: object,
+                options: [.prettyPrinted, .sortedKeys]
+            ),
+            let str = String(data: data, encoding: .utf8)
+        else {
+            return
+        }
+        print(str)
+    }
+
     private func printErr(_ message: String) {
         var stderr = FileHandleOutputStream(
             FileHandle.standardError
@@ -141,7 +206,7 @@ struct ManifestParseCommand: AsyncParsableCommand {
 
 // MARK: - Generate Subcommand
 
-/// Generate an HLS master playlist from a JSON configuration.
+/// Generate an HLS playlist from a JSON config or a directory of segments.
 struct ManifestGenerateCommand: AsyncParsableCommand {
 
     static let configuration = CommandConfiguration(
@@ -149,7 +214,9 @@ struct ManifestGenerateCommand: AsyncParsableCommand {
         abstract: "Generate an HLS master playlist from a JSON configuration."
     )
 
-    @Argument(help: "JSON configuration file")
+    @Argument(
+        help: "JSON configuration file or directory of segments"
+    )
     var input: String
 
     @Option(
@@ -164,15 +231,26 @@ struct ManifestGenerateCommand: AsyncParsableCommand {
             throw ExitCode(ExitCodes.fileNotFound)
         }
 
-        let url = URL(fileURLWithPath: input)
-        let data = try Data(contentsOf: url)
-        let config = try JSONDecoder().decode(
-            ManifestConfig.self, from: data
+        var isDir: ObjCBool = false
+        FileManager.default.fileExists(
+            atPath: input, isDirectory: &isDir
         )
 
-        let playlist = buildPlaylist(from: config)
-        let engine = HLSEngine()
-        let m3u8 = engine.generate(playlist)
+        let m3u8: String
+        if isDir.boolValue {
+            m3u8 = try generateFromDirectory(
+                URL(fileURLWithPath: input)
+            )
+        } else {
+            let url = URL(fileURLWithPath: input)
+            let data = try Data(contentsOf: url)
+            let config = try JSONDecoder().decode(
+                ManifestConfig.self, from: data
+            )
+            let playlist = buildPlaylist(from: config)
+            let engine = HLSEngine()
+            m3u8 = engine.generate(playlist)
+        }
 
         if let outputPath = output {
             try m3u8.write(
@@ -205,6 +283,86 @@ struct ManifestGenerateCommand: AsyncParsableCommand {
             version: config.version.flatMap { HLSVersion(rawValue: $0) },
             variants: variants
         )
+    }
+
+    private func generateFromDirectory(
+        _ directory: URL
+    ) throws -> String {
+        let contents = try FileManager.default
+            .contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: [.fileSizeKey]
+            )
+
+        let m4sFiles =
+            contents
+            .filter { $0.pathExtension == "m4s" }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        let tsFiles =
+            contents
+            .filter { $0.pathExtension == "ts" }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        let hasInit = contents.contains {
+            $0.lastPathComponent == "init.mp4"
+        }
+
+        let isFMP4 = !m4sFiles.isEmpty
+        let segmentFiles = isFMP4 ? m4sFiles : tsFiles
+
+        guard !segmentFiles.isEmpty else {
+            printErr(
+                "Error: no segments found in \(directory.path)"
+            )
+            throw ExitCode(ExitCodes.generalError)
+        }
+
+        let version = isFMP4 ? 7 : 3
+        let targetDuration = 6
+
+        var lines: [String] = [
+            "#EXTM3U",
+            "#EXT-X-VERSION:\(version)",
+            "#EXT-X-TARGETDURATION:\(targetDuration)",
+            "#EXT-X-MEDIA-SEQUENCE:0",
+            "#EXT-X-PLAYLIST-TYPE:VOD"
+        ]
+
+        if isFMP4 && hasInit {
+            lines.append(
+                "#EXT-X-MAP:URI=\"init.mp4\""
+            )
+        }
+
+        lines += buildSegmentEntries(segmentFiles)
+        lines.append("#EXT-X-ENDLIST")
+        lines.append("")
+
+        let m3u8 = lines.joined(separator: "\n")
+
+        let playlistURL = directory.appendingPathComponent(
+            "playlist.m3u8"
+        )
+        try m3u8.write(
+            to: playlistURL, atomically: true, encoding: .utf8
+        )
+
+        return m3u8
+    }
+
+    private func buildSegmentEntries(
+        _ files: [URL]
+    ) -> [String] {
+        files.map { file in
+            let size =
+                (try? file.resourceValues(
+                    forKeys: [.fileSizeKey]
+                ).fileSize) ?? 0
+            let dur = String(
+                format: "%.3f",
+                max(1.0, Double(size) / 50_000.0)
+            )
+            return "#EXTINF:\(dur),\n\(file.lastPathComponent)"
+        }
     }
 
     private func printErr(_ message: String) {

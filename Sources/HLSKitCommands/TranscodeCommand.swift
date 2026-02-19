@@ -20,13 +20,19 @@ struct TranscodeCommand: AsyncParsableCommand {
     )
 
     @Argument(help: "Input media file")
-    var input: String
+    var input: String?
 
     @Option(
         name: .shortAndLong,
         help: "Output directory (default: ./hls_output/)"
     )
     var output: String = "./hls_output/"
+
+    @Flag(
+        name: .long,
+        help: "List available quality presets"
+    )
+    var listPresets: Bool = false
 
     @Option(
         name: .long,
@@ -68,6 +74,16 @@ struct TranscodeCommand: AsyncParsableCommand {
     var outputFormat: String = "text"
 
     func run() async throws {
+        if listPresets {
+            printPresetList()
+            return
+        }
+
+        guard let input else {
+            printErr("Error: missing input file")
+            throw ExitCode(ExitCodes.generalError)
+        }
+
         let inputURL = URL(fileURLWithPath: input)
         let outputURL = URL(fileURLWithPath: output)
         let engine = HLSEngine()
@@ -76,6 +92,11 @@ struct TranscodeCommand: AsyncParsableCommand {
             printErr("Error: file not found: \(input)")
             throw ExitCode(ExitCodes.fileNotFound)
         }
+
+        try FileManager.default.createDirectory(
+            at: outputURL,
+            withIntermediateDirectories: true
+        )
 
         let variants = resolveVariants()
 
@@ -171,14 +192,36 @@ extension TranscodeCommand {
         _ name: String
     ) -> QualityPreset? {
         switch name.lowercased() {
-        case "360p": return .p360
+        case "360p", "low": return .p360
         case "480p": return .p480
-        case "720p": return .p720
-        case "1080p": return .p1080
+        case "720p", "medium": return .p720
+        case "1080p", "high": return .p1080
         case "2160p", "4k": return .p2160
         case "audio", "audio-only": return .audioOnly
         default: return nil
         }
+    }
+
+    private func printPresetList() {
+        let items: [(String, String)] = [
+            ("360p", "640x360 @ 800 kbps (alias: low)"),
+            ("480p", "854x480 @ 1.4 Mbps"),
+            ("720p", "1280x720 @ 2.8 Mbps (alias: medium)"),
+            ("1080p", "1920x1080 @ 5 Mbps (alias: high)"),
+            ("2160p", "3840x2160 @ 14 Mbps (alias: 4k)"),
+            ("audio", "Audio only @ 128 kbps")
+        ]
+        print("Available quality presets:")
+        for (name, desc) in items {
+            let padded = name.padding(
+                toLength: 8, withPad: " ", startingAt: 0
+            )
+            print("  \(padded) \(desc)")
+        }
+        print("")
+        print("Resolution ladders:")
+        print("  standard  360p, 480p, 720p, 1080p")
+        print("  full      360p, 480p, 720p, 1080p, 2160p")
     }
 
     private func printErr(_ message: String) {
