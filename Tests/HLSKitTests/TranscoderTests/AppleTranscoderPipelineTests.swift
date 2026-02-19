@@ -4,7 +4,9 @@
 #if canImport(AVFoundation)
     import Foundation
     import Testing
-    import os
+    #if canImport(os)
+        import os
+    #endif
 
     @testable import HLSKit
 
