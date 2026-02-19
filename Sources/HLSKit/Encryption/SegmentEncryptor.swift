@@ -3,9 +3,12 @@
 
 import Foundation
 
-/// Encrypts and decrypts HLS media segments using AES-128-CBC.
+/// Encrypts and decrypts HLS media segments.
 ///
-/// ## Single Segment
+/// Supports AES-128 (full segment encryption) and SAMPLE-AES
+/// (sample-level encryption of NAL units and ADTS frames).
+///
+/// ## Single Segment (AES-128)
 ///
 /// ```swift
 /// let encryptor = SegmentEncryptor()
@@ -25,7 +28,8 @@ import Foundation
 /// )
 /// ```
 ///
-/// - SeeAlso: ``EncryptionConfig``, ``KeyManager``
+/// - SeeAlso: ``EncryptionConfig``, ``KeyManager``,
+///   ``SampleEncryptor``
 public struct SegmentEncryptor: Sendable {
 
     private let cryptoProvider: CryptoProvider
@@ -79,12 +83,15 @@ public struct SegmentEncryptor: Sendable {
 
     /// Encrypt all segments from a segmentation result.
     ///
-    /// Reads each segment's data, encrypts it in-place, optionally
-    /// writes the key file, and returns an updated result with an
-    /// encrypted playlist.
+    /// Dispatches to the appropriate encryption strategy based on
+    /// the configured method:
+    /// - `.aes128`: Full segment encryption with PKCS#7 padding.
+    /// - `.sampleAES`: Sample-level encryption of NAL units/ADTS.
+    /// - `.none`: Returns the result unchanged.
     ///
     /// - Parameters:
-    ///   - result: Segmentation result from MP4Segmenter or TSSegmenter.
+    ///   - result: Segmentation result from MP4Segmenter or
+    ///     TSSegmenter.
     ///   - config: Encryption configuration.
     /// - Returns: Updated segmentation result with encrypted data.
     /// - Throws: ``EncryptionError``
@@ -92,12 +99,75 @@ public struct SegmentEncryptor: Sendable {
         result: SegmentationResult,
         config: EncryptionConfig
     ) throws -> SegmentationResult {
-        guard config.method == .aes128 else {
+        switch config.method {
+        case .aes128:
+            return try encryptAES128(
+                result: result, config: config
+            )
+        case .sampleAES:
+            return try encryptSampleAES(
+                result: result, config: config
+            )
+        case .none:
+            return result
+        case .sampleAESCTR:
             throw EncryptionError.unsupportedMethod(
                 config.method.rawValue
             )
         }
+    }
 
+    /// Encrypt segments using SAMPLE-AES.
+    ///
+    /// Only works with MPEG-TS segments (SAMPLE-AES operates on
+    /// PES/NAL/ADTS data within TS containers).
+    ///
+    /// - Parameters:
+    ///   - result: Segmentation result (must be MPEG-TS).
+    ///   - config: Encryption config with method `.sampleAES`.
+    /// - Returns: Updated result with SAMPLE-AES encrypted segments.
+    /// - Throws: ``EncryptionError``
+    public func encryptSampleAES(
+        result: SegmentationResult,
+        config: EncryptionConfig
+    ) throws -> SegmentationResult {
+        let key = try config.key ?? keyManager.generateKey()
+        let sampleEnc = SampleEncryptor(
+            cryptoProvider: cryptoProvider
+        )
+        var encryptedSegments: [MediaSegmentOutput] = []
+
+        for (index, segment) in result.mediaSegments.enumerated() {
+            let iv = resolveIV(
+                config: config, segmentIndex: index
+            )
+            let encrypted = try sampleEnc.encryptTSSegment(
+                segment.data, key: key, iv: iv
+            )
+            encryptedSegments.append(
+                MediaSegmentOutput(
+                    index: segment.index,
+                    data: encrypted,
+                    duration: segment.duration,
+                    filename: segment.filename,
+                    byteRangeOffset: segment.byteRangeOffset,
+                    byteRangeLength: segment.byteRangeLength
+                )
+            )
+        }
+
+        return buildEncryptedResult(
+            result: result, config: config,
+            segments: encryptedSegments
+        )
+    }
+
+    // MARK: - AES-128
+
+    private func encryptAES128(
+        result: SegmentationResult,
+        config: EncryptionConfig
+    ) throws -> SegmentationResult {
         let key = try config.key ?? keyManager.generateKey()
         var encryptedSegments: [MediaSegmentOutput] = []
 
@@ -120,13 +190,24 @@ public struct SegmentEncryptor: Sendable {
             )
         }
 
+        return buildEncryptedResult(
+            result: result, config: config,
+            segments: encryptedSegments
+        )
+    }
+
+    private func buildEncryptedResult(
+        result: SegmentationResult,
+        config: EncryptionConfig,
+        segments: [MediaSegmentOutput]
+    ) -> SegmentationResult {
         let builder = EncryptedPlaylistBuilder()
         let playlist: String?
         if let original = result.playlist {
             playlist = builder.addEncryptionTags(
                 to: original,
                 config: config,
-                segmentCount: encryptedSegments.count
+                segmentCount: segments.count
             )
         } else {
             playlist = nil
@@ -134,7 +215,7 @@ public struct SegmentEncryptor: Sendable {
 
         return SegmentationResult(
             initSegment: result.initSegment,
-            mediaSegments: encryptedSegments,
+            mediaSegments: segments,
             playlist: playlist,
             fileInfo: result.fileInfo,
             config: result.config
@@ -157,13 +238,20 @@ public struct SegmentEncryptor: Sendable {
         segmentFilenames: [String],
         config: EncryptionConfig
     ) throws -> Data {
-        guard config.method == .aes128 else {
+        guard
+            config.method == .aes128
+                || config.method == .sampleAES
+        else {
             throw EncryptionError.unsupportedMethod(
                 config.method.rawValue
             )
         }
 
         let key = try config.key ?? keyManager.generateKey()
+        let sampleEnc =
+            config.method == .sampleAES
+            ? SampleEncryptor(cryptoProvider: cryptoProvider)
+            : nil
 
         for (index, filename) in segmentFilenames.enumerated() {
             let fileURL = directory.appendingPathComponent(filename)
@@ -178,9 +266,16 @@ public struct SegmentEncryptor: Sendable {
             let iv = resolveIV(
                 config: config, segmentIndex: index
             )
-            let encrypted = try cryptoProvider.encrypt(
-                data, key: key, iv: iv
-            )
+            let encrypted: Data
+            if let sEnc = sampleEnc {
+                encrypted = try sEnc.encryptTSSegment(
+                    data, key: key, iv: iv
+                )
+            } else {
+                encrypted = try cryptoProvider.encrypt(
+                    data, key: key, iv: iv
+                )
+            }
             try encrypted.write(to: fileURL)
         }
 

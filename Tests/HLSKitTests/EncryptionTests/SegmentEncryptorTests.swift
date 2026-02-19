@@ -145,7 +145,7 @@ struct SegmentEncryptorTests {
             URL(string: "https://example.com/key.bin")
         )
         let config = EncryptionConfig(
-            method: .sampleAES, keyURL: url
+            method: .sampleAESCTR, keyURL: url
         )
         let result = makeResult(segments: [], playlist: nil)
         #expect(throws: EncryptionError.self) {

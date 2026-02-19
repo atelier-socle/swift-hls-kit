@@ -98,7 +98,7 @@ struct SegmentEncryptorEdgeCaseTests {
             URL(string: "https://example.com/key.bin")
         )
         let config = EncryptionConfig(
-            method: .sampleAES, keyURL: url
+            method: .sampleAESCTR, keyURL: url
         )
         #expect(throws: EncryptionError.self) {
             try encryptor.encryptDirectory(
