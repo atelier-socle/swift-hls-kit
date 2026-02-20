@@ -53,10 +53,14 @@ public struct ManagedTranscoder: Transcoder, Sendable {
             )
         case .awsMediaConvert:
             self.provider = SendableProvider(
-                AWSMediaConvertProvider()
+                AWSMediaConvertProvider(
+                    httpClient: self.httpClient
+                )
             )
         case .mux:
-            self.provider = SendableProvider(MuxProvider())
+            self.provider = SendableProvider(
+                MuxProvider(httpClient: self.httpClient)
+            )
         }
     }
 

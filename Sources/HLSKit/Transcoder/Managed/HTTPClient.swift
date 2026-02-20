@@ -79,6 +79,12 @@ struct HTTPResponse: Sendable {
 /// Used by ``ManagedTranscoder`` for production network calls.
 struct URLSessionHTTPClient: HTTPClient, Sendable {
 
+    private let session: URLSession
+
+    init(session: URLSession = .shared) {
+        self.session = session
+    }
+
     func request(
         url: URL,
         method: String,
@@ -92,7 +98,7 @@ struct URLSessionHTTPClient: HTTPClient, Sendable {
         }
         request.httpBody = body
 
-        let (data, response) = try await URLSession.shared.data(
+        let (data, response) = try await session.data(
             for: request
         )
 
@@ -136,7 +142,7 @@ struct URLSessionHTTPClient: HTTPClient, Sendable {
         request.httpBody = fileData
 
         progress?(0.5)
-        let (data, response) = try await URLSession.shared.data(
+        let (data, response) = try await session.data(
             for: request
         )
         progress?(1.0)
@@ -176,7 +182,7 @@ struct URLSessionHTTPClient: HTTPClient, Sendable {
         }
 
         progress?(0.5)
-        let (data, response) = try await URLSession.shared.data(
+        let (data, response) = try await session.data(
             for: request
         )
         progress?(1.0)
