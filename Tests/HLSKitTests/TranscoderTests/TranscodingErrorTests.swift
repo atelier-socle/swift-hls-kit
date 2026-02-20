@@ -22,7 +22,13 @@ struct TranscodingErrorTests {
             .decodingFailed("corrupt frame"),
             .cancelled,
             .invalidConfig("negative bitrate"),
-            .transcoderNotAvailable("no FFmpeg")
+            .transcoderNotAvailable("no FFmpeg"),
+            .uploadFailed("upload error"),
+            .jobFailed("job error"),
+            .timeout("timeout error"),
+            .downloadFailed("download error"),
+            .providerNotImplemented("not implemented"),
+            .authenticationFailed("auth error")
         ]
         for error in errors {
             let description = error.errorDescription

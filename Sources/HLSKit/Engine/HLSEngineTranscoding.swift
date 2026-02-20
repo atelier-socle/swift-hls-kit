@@ -118,4 +118,17 @@ extension HLSEngine {
             )
         #endif
     }
+
+    /// Create a managed (cloud) transcoder.
+    ///
+    /// Returns a ``ManagedTranscoder`` configured for the specified
+    /// cloud transcoding service.
+    ///
+    /// - Parameter config: Cloud provider configuration.
+    /// - Returns: A managed transcoder instance.
+    public func managedTranscoder(
+        config: ManagedTranscodingConfig
+    ) -> ManagedTranscoder {
+        ManagedTranscoder(config: config)
+    }
 }

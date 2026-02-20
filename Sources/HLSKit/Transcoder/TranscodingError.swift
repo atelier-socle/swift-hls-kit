@@ -41,6 +41,24 @@ public enum TranscodingError: Error, Sendable, Hashable {
 
     /// Transcoder not available on this platform.
     case transcoderNotAvailable(String)
+
+    /// Upload to cloud service failed.
+    case uploadFailed(String)
+
+    /// Cloud transcoding job failed.
+    case jobFailed(String)
+
+    /// Polling timed out.
+    case timeout(String)
+
+    /// Download of transcoded output failed.
+    case downloadFailed(String)
+
+    /// Provider not yet implemented.
+    case providerNotImplemented(String)
+
+    /// Invalid API credentials.
+    case authenticationFailed(String)
 }
 
 // MARK: - LocalizedError
@@ -69,6 +87,18 @@ extension TranscodingError: LocalizedError {
             return "Invalid configuration: \(message)"
         case .transcoderNotAvailable(let message):
             return "Transcoder not available: \(message)"
+        case .uploadFailed(let message):
+            return "Upload failed: \(message)"
+        case .jobFailed(let message):
+            return "Cloud transcoding job failed: \(message)"
+        case .timeout(let message):
+            return "Timeout: \(message)"
+        case .downloadFailed(let message):
+            return "Download failed: \(message)"
+        case .providerNotImplemented(let message):
+            return "Provider not implemented: \(message)"
+        case .authenticationFailed(let message):
+            return "Authentication failed: \(message)"
         }
     }
 }
