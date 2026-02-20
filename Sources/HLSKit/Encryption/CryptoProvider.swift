@@ -21,19 +21,44 @@ protocol CryptoProvider: Sendable {
     ///   - data: Plaintext data.
     ///   - key: 16-byte AES key.
     ///   - iv: 16-byte initialization vector.
-    /// - Returns: Encrypted data with PKCS#7 padding.
+    ///   - noPadding: If true, skip PKCS#7 padding (data must be
+    ///     block-aligned). Used by SAMPLE-AES which pre-aligns blocks.
+    /// - Returns: Encrypted data.
     /// - Throws: ``EncryptionError`` on failure.
-    func encrypt(_ data: Data, key: Data, iv: Data) throws -> Data
+    func encrypt(
+        _ data: Data, key: Data, iv: Data, noPadding: Bool
+    ) throws -> Data
 
     /// Decrypt data with AES-128-CBC.
     ///
     /// - Parameters:
-    ///   - data: Ciphertext data with PKCS#7 padding.
+    ///   - data: Ciphertext data.
     ///   - key: 16-byte AES key.
     ///   - iv: 16-byte initialization vector.
+    ///   - noPadding: If true, skip PKCS#7 padding removal (data is
+    ///     block-aligned). Used by SAMPLE-AES which pre-aligns blocks.
     /// - Returns: Decrypted plaintext data.
     /// - Throws: ``EncryptionError`` on failure.
-    func decrypt(_ data: Data, key: Data, iv: Data) throws -> Data
+    func decrypt(
+        _ data: Data, key: Data, iv: Data, noPadding: Bool
+    ) throws -> Data
+}
+
+// MARK: - Backward Compatibility
+
+extension CryptoProvider {
+
+    func encrypt(
+        _ data: Data, key: Data, iv: Data
+    ) throws -> Data {
+        try encrypt(data, key: key, iv: iv, noPadding: false)
+    }
+
+    func decrypt(
+        _ data: Data, key: Data, iv: Data
+    ) throws -> Data {
+        try decrypt(data, key: key, iv: iv, noPadding: false)
+    }
 }
 
 // MARK: - Default Provider
@@ -63,26 +88,30 @@ func defaultCryptoProvider() -> CryptoProvider {
     struct CommonCryptoCryptoProvider: CryptoProvider {
 
         func encrypt(
-            _ data: Data, key: Data, iv: Data
+            _ data: Data, key: Data, iv: Data,
+            noPadding: Bool
         ) throws -> Data {
             try crypt(
                 data, key: key, iv: iv,
-                operation: CCOperation(kCCEncrypt)
+                operation: CCOperation(kCCEncrypt),
+                noPadding: noPadding
             )
         }
 
         func decrypt(
-            _ data: Data, key: Data, iv: Data
+            _ data: Data, key: Data, iv: Data,
+            noPadding: Bool
         ) throws -> Data {
             try crypt(
                 data, key: key, iv: iv,
-                operation: CCOperation(kCCDecrypt)
+                operation: CCOperation(kCCDecrypt),
+                noPadding: noPadding
             )
         }
 
         private func crypt(
             _ data: Data, key: Data, iv: Data,
-            operation: CCOperation
+            operation: CCOperation, noPadding: Bool
         ) throws -> Data {
             guard key.count == kCCKeySizeAES128 else {
                 throw EncryptionError.invalidKeySize(key.count)
@@ -91,6 +120,8 @@ func defaultCryptoProvider() -> CryptoProvider {
                 throw EncryptionError.invalidIVSize(iv.count)
             }
 
+            let options: CCOptions =
+                noPadding ? 0 : CCOptions(kCCOptionPKCS7Padding)
             let bufferSize = data.count + kCCBlockSizeAES128
             var buffer = Data(count: bufferSize)
             var bytesProcessed = 0
@@ -102,7 +133,7 @@ func defaultCryptoProvider() -> CryptoProvider {
                             CCCrypt(
                                 operation,
                                 CCAlgorithm(kCCAlgorithmAES),
-                                CCOptions(kCCOptionPKCS7Padding),
+                                options,
                                 keyPtr.baseAddress,
                                 kCCKeySizeAES128,
                                 ivPtr.baseAddress,
@@ -142,7 +173,8 @@ func defaultCryptoProvider() -> CryptoProvider {
     struct OpenSSLCryptoProvider: CryptoProvider {
 
         func encrypt(
-            _ data: Data, key: Data, iv: Data
+            _ data: Data, key: Data, iv: Data,
+            noPadding: Bool
         ) throws -> Data {
             guard key.count == 16 else {
                 throw EncryptionError.invalidKeySize(key.count)
@@ -151,12 +183,14 @@ func defaultCryptoProvider() -> CryptoProvider {
                 throw EncryptionError.invalidIVSize(iv.count)
             }
             return try runOpenSSL(
-                data, key: key, iv: iv, decrypt: false
+                data, key: key, iv: iv,
+                decrypt: false, noPadding: noPadding
             )
         }
 
         func decrypt(
-            _ data: Data, key: Data, iv: Data
+            _ data: Data, key: Data, iv: Data,
+            noPadding: Bool
         ) throws -> Data {
             guard key.count == 16 else {
                 throw EncryptionError.invalidKeySize(key.count)
@@ -165,12 +199,14 @@ func defaultCryptoProvider() -> CryptoProvider {
                 throw EncryptionError.invalidIVSize(iv.count)
             }
             return try runOpenSSL(
-                data, key: key, iv: iv, decrypt: true
+                data, key: key, iv: iv,
+                decrypt: true, noPadding: noPadding
             )
         }
 
         private func runOpenSSL(
-            _ data: Data, key: Data, iv: Data, decrypt: Bool
+            _ data: Data, key: Data, iv: Data,
+            decrypt: Bool, noPadding: Bool
         ) throws -> Data {
             let keyHex = key.map {
                 String(format: "%02x", $0)
@@ -200,6 +236,9 @@ func defaultCryptoProvider() -> CryptoProvider {
             ]
             if decrypt {
                 args.append("-d")
+            }
+            if noPadding {
+                args.append("-nopad")
             }
 
             let process = Process()

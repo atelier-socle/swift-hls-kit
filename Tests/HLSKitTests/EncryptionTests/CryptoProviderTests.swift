@@ -195,4 +195,37 @@ struct CryptoProviderTests {
             // Padding error may occur
         }
     }
+
+    // MARK: - No Padding Mode
+
+    @Test("noPadding encrypt: block-aligned data produces same-size output")
+    func noPaddingEncryptBlockAligned() throws {
+        let data = Data(repeating: 0xAB, count: 48)
+        let encrypted = try provider.encrypt(
+            data, key: key, iv: iv, noPadding: true
+        )
+        #expect(encrypted.count == 48)
+    }
+
+    @Test("noPadding round-trip: encrypt then decrypt = original")
+    func noPaddingRoundTrip() throws {
+        let data = Data(repeating: 0xAB, count: 48)
+        let encrypted = try provider.encrypt(
+            data, key: key, iv: iv, noPadding: true
+        )
+        let decrypted = try provider.decrypt(
+            encrypted, key: key, iv: iv, noPadding: true
+        )
+        #expect(decrypted == data)
+    }
+
+    @Test("noPadding with non-block-aligned data throws error")
+    func noPaddingNonAligned() throws {
+        let data = Data(repeating: 0xAB, count: 17)
+        #expect(throws: (any Error).self) {
+            try provider.encrypt(
+                data, key: key, iv: iv, noPadding: true
+            )
+        }
+    }
 }

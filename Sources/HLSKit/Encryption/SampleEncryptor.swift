@@ -351,11 +351,13 @@ extension SampleEncryptor {
         let processed: Data
         if encrypt {
             processed = try cryptoProvider.encrypt(
-                slice, key: keyIV.key, iv: keyIV.iv
+                slice, key: keyIV.key, iv: keyIV.iv,
+                noPadding: true
             )
         } else {
             processed = try cryptoProvider.decrypt(
-                slice, key: keyIV.key, iv: keyIV.iv
+                slice, key: keyIV.key, iv: keyIV.iv,
+                noPadding: true
             )
         }
 
