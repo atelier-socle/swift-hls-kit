@@ -3,6 +3,10 @@
 
 import Foundation
 
+#if canImport(FoundationNetworking)
+    import FoundationNetworking
+#endif
+
 /// Minimal HTTP client abstraction for managed transcoding.
 ///
 /// Allows injection of mock clients in tests.

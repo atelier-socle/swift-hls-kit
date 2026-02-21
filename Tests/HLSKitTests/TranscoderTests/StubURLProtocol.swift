@@ -4,6 +4,10 @@
 import Foundation
 import os
 
+#if canImport(FoundationNetworking)
+    import FoundationNetworking
+#endif
+
 /// URL protocol stub for testing URLSessionHTTPClient
 /// without network access.
 class StubURLProtocol: URLProtocol {

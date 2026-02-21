@@ -3,6 +3,10 @@
 
 import Foundation
 
+#if canImport(FoundationNetworking)
+    import FoundationNetworking
+#endif
+
 /// Transcoder that delegates to cloud services via REST APIs.
 ///
 /// Implements the same ``Transcoder`` protocol as ``AppleTranscoder``

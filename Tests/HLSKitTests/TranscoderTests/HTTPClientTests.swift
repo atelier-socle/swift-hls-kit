@@ -6,6 +6,10 @@ import Testing
 
 @testable import HLSKit
 
+#if canImport(FoundationNetworking)
+    import FoundationNetworking
+#endif
+
 @Suite("HTTPClient")
 struct HTTPClientTests {
 

@@ -7,6 +7,10 @@ import os
 
 @testable import HLSKit
 
+#if canImport(FoundationNetworking)
+    import FoundationNetworking
+#endif
+
 @Suite("URLSessionHTTPClient", .serialized)
 struct URLSessionHTTPClientTests {
 
