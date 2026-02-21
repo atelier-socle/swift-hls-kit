@@ -2,7 +2,12 @@
 // Copyright 2026 Atelier Socle SAS
 
 import Foundation
-import os
+
+#if canImport(os)
+    import os
+#else
+    import Synchronization
+#endif
 
 #if canImport(FoundationNetworking)
     import FoundationNetworking
@@ -12,19 +17,21 @@ import os
 /// without network access.
 class StubURLProtocol: URLProtocol {
 
-    private static let handlerStorage = OSAllocatedUnfairLock<
-        (
-            @Sendable (URLRequest) throws
-                -> (HTTPURLResponse, Data)
-        )?
-    >(initialState: nil)
+    typealias Handler =
+        @Sendable (URLRequest) throws
+        -> (HTTPURLResponse, Data)
 
-    static func setHandler(
-        _ handler: (
-            @Sendable (URLRequest) throws
-                -> (HTTPURLResponse, Data)
-        )?
-    ) {
+    #if canImport(os)
+        private static let handlerStorage =
+            OSAllocatedUnfairLock<Handler?>(
+                initialState: nil
+            )
+    #else
+        private static let handlerStorage =
+            Mutex<Handler?>(nil)
+    #endif
+
+    static func setHandler(_ handler: Handler?) {
         handlerStorage.withLock { $0 = handler }
     }
 

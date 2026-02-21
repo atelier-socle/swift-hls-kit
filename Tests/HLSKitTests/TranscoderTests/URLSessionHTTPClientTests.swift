@@ -3,9 +3,15 @@
 
 import Foundation
 import Testing
-import os
 
 @testable import HLSKit
+
+#if canImport(os)
+    import os
+#else
+    import Synchronization
+#endif
+
 
 #if canImport(FoundationNetworking)
     import FoundationNetworking
@@ -91,9 +97,13 @@ struct URLSessionHTTPClientTests {
 
     @Test("request sends custom headers")
     func requestSendsHeaders() async throws {
-        let headerLock = OSAllocatedUnfairLock<String>(
-            initialState: ""
-        )
+        #if canImport(os)
+            let headerLock = OSAllocatedUnfairLock<String>(
+                initialState: ""
+            )
+        #else
+            let headerLock = Mutex<String>("")
+        #endif
         StubURLProtocol.setHandler { request in
             let val =
                 request.value(
