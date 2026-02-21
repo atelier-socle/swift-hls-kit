@@ -53,6 +53,10 @@ public struct ManagedTranscodingConfig: Sendable {
     /// (default: true).
     public var cleanupAfterDownload: Bool
 
+    /// Default quality preset for single-variant transcoding.
+    /// Default: `.p720` (standard HD, matching Apple/FFmpeg).
+    public var defaultPreset: QualityPreset
+
     /// Output container format preference.
     public var outputFormat: OutputFormat
 
@@ -92,6 +96,8 @@ public struct ManagedTranscodingConfig: Sendable {
     ///   - pollingInterval: Status polling interval in seconds.
     ///   - timeout: Maximum wait time in seconds.
     ///   - cleanupAfterDownload: Whether to delete remote assets.
+    ///   - defaultPreset: Quality preset for single-variant
+    ///     transcoding.
     ///   - outputFormat: Output container format.
     public init(
         provider: ProviderType,
@@ -104,6 +110,7 @@ public struct ManagedTranscodingConfig: Sendable {
         pollingInterval: TimeInterval = 5,
         timeout: TimeInterval = 3600,
         cleanupAfterDownload: Bool = true,
+        defaultPreset: QualityPreset = .p720,
         outputFormat: OutputFormat = .fmp4
     ) {
         self.provider = provider
@@ -116,6 +123,7 @@ public struct ManagedTranscodingConfig: Sendable {
         self.pollingInterval = pollingInterval
         self.timeout = timeout
         self.cleanupAfterDownload = cleanupAfterDownload
+        self.defaultPreset = defaultPreset
         self.outputFormat = outputFormat
     }
 }

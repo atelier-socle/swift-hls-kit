@@ -270,4 +270,99 @@ struct ManagedTranscoderTests {
 
         #expect(result.preset == .p720)
     }
+
+    // MARK: - Preset Resolution
+
+    @Test("Default preset is .p720")
+    func defaultPreset() async throws {
+        let tempDir = ManagedTestHelper.makeTempDir()
+        defer { ManagedTestHelper.cleanup(tempDir) }
+
+        let inputFile = try ManagedTestHelper.createInput(
+            in: tempDir
+        )
+        let provider = MockManagedProvider(downloadResult: [])
+        let sut = ManagedTestHelper.makeSUT(
+            provider: provider
+        )
+
+        let result = try await sut.transcode(
+            input: inputFile,
+            outputDirectory:
+                tempDir.appendingPathComponent("out"),
+            config: TranscodingConfig(),
+            progress: nil
+        )
+
+        #expect(result.preset == .p720)
+    }
+
+    @Test("Custom preset via ManagedTranscodingConfig")
+    func customPreset() async throws {
+        let tempDir = ManagedTestHelper.makeTempDir()
+        defer { ManagedTestHelper.cleanup(tempDir) }
+
+        let inputFile = try ManagedTestHelper.createInput(
+            in: tempDir
+        )
+        let config = ManagedTranscodingConfig(
+            provider: .cloudflareStream,
+            apiKey: "test-key",
+            accountID: "test-account",
+            pollingInterval: 0.01,
+            timeout: 5,
+            defaultPreset: .p1080
+        )
+        let provider = MockManagedProvider(downloadResult: [])
+        let sut = ManagedTranscoder(
+            config: config,
+            provider: provider,
+            httpClient: MockManagedHTTPClient()
+        )
+
+        let result = try await sut.transcode(
+            input: inputFile,
+            outputDirectory:
+                tempDir.appendingPathComponent("out"),
+            config: TranscodingConfig(),
+            progress: nil
+        )
+
+        #expect(result.preset == .p1080)
+    }
+
+    @Test("Audio-only preset via ManagedTranscodingConfig")
+    func audioOnlyPreset() async throws {
+        let tempDir = ManagedTestHelper.makeTempDir()
+        defer { ManagedTestHelper.cleanup(tempDir) }
+
+        let inputFile = try ManagedTestHelper.createInput(
+            in: tempDir
+        )
+        let config = ManagedTranscodingConfig(
+            provider: .cloudflareStream,
+            apiKey: "test-key",
+            accountID: "test-account",
+            pollingInterval: 0.01,
+            timeout: 5,
+            defaultPreset: .audioOnly
+        )
+        let provider = MockManagedProvider(downloadResult: [])
+        let sut = ManagedTranscoder(
+            config: config,
+            provider: provider,
+            httpClient: MockManagedHTTPClient()
+        )
+
+        let result = try await sut.transcode(
+            input: inputFile,
+            outputDirectory:
+                tempDir.appendingPathComponent("out"),
+            config: TranscodingConfig(),
+            progress: nil
+        )
+
+        #expect(result.preset == .audioOnly)
+        #expect(result.preset.isAudioOnly)
+    }
 }

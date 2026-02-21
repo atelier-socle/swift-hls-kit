@@ -101,6 +101,7 @@ public struct ManagedTranscoder: Transcoder, Sendable {
         progress: (@Sendable (Double) -> Void)?
     ) async throws -> TranscodingResult {
         let startTime = Date().timeIntervalSinceReferenceDate
+        let preset = resolvePreset()
 
         try validateInputs(input: input)
         try prepareOutputDirectory(outputDirectory)
@@ -119,7 +120,7 @@ public struct ManagedTranscoder: Transcoder, Sendable {
 
         var job = try await provider.createJob(
             assetID: assetID,
-            variants: [.p720],
+            variants: [preset],
             config: managedConfig
         )
 
@@ -157,7 +158,7 @@ public struct ManagedTranscoder: Transcoder, Sendable {
         }
 
         return TranscodingResult(
-            preset: .p720,
+            preset: preset,
             outputDirectory: outputDirectory,
             transcodingDuration: elapsed,
             sourceDuration: 0,
@@ -212,6 +213,21 @@ extension ManagedTranscoder {
         }
 
         return current
+    }
+}
+
+// MARK: - Preset Resolution
+
+extension ManagedTranscoder {
+
+    /// Derive the quality preset from the managed configuration.
+    ///
+    /// Returns ``ManagedTranscodingConfig/defaultPreset``
+    /// (`.p720` by default). If the configured preset is
+    /// audio-only, it is returned as-is so the cloud provider
+    /// can skip video encoding.
+    private func resolvePreset() -> QualityPreset {
+        managedConfig.defaultPreset
     }
 }
 

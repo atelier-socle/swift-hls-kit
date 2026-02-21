@@ -266,6 +266,27 @@ struct ManagedTranscodingConfigShowcase {
         )
         #expect(config.pollingInterval == 5)
         #expect(config.timeout == 3600)
+        #expect(config.defaultPreset == .p720)
+    }
+
+    @Test("ManagedTranscodingConfig — defaultPreset: .p1080 for high quality")
+    func customDefaultPreset() {
+        let config = ManagedTranscodingConfig(
+            provider: .cloudflareStream,
+            apiKey: "k", accountID: "a",
+            defaultPreset: .p1080
+        )
+        #expect(config.defaultPreset == .p1080)
+    }
+
+    @Test("ManagedTranscodingConfig — defaultPreset: .audioOnly for podcast")
+    func audioOnlyDefaultPreset() {
+        let config = ManagedTranscodingConfig(
+            provider: .cloudflareStream,
+            apiKey: "k", accountID: "a",
+            defaultPreset: .audioOnly
+        )
+        #expect(config.defaultPreset.isAudioOnly)
     }
 
     @Test("ManagedTranscodingConfig — custom endpoint for self-hosted/testing")
