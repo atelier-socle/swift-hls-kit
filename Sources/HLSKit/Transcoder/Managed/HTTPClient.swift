@@ -3,6 +3,10 @@
 
 import Foundation
 
+#if canImport(os)
+    import os
+#endif
+
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
@@ -87,7 +91,7 @@ struct HTTPResponse: Sendable {
     {
         private let continuation: CheckedContinuation<HTTPResponse, Error>
         private let progressHandler: (@Sendable (Double) -> Void)?
-        private var receivedData = Data()
+        private let receivedData = OSAllocatedUnfairLock(initialState: Data())
 
         init(
             continuation: CheckedContinuation<
@@ -118,7 +122,7 @@ struct HTTPResponse: Sendable {
             dataTask: URLSessionDataTask,
             didReceive data: Data
         ) {
-            receivedData.append(data)
+            receivedData.withLock { $0.append(data) }
         }
 
         func urlSession(
@@ -153,11 +157,12 @@ struct HTTPResponse: Sendable {
                         result[key] = value
                     }
                 }
+            let body = receivedData.withLock { $0 }
             continuation.resume(
                 returning: HTTPResponse(
                     statusCode: httpResponse.statusCode,
                     headers: headers,
-                    body: receivedData
+                    body: body
                 )
             )
         }
@@ -170,7 +175,7 @@ struct HTTPResponse: Sendable {
     {
         private let continuation: CheckedContinuation<URL, Error>
         private let progressHandler: (@Sendable (Double) -> Void)?
-        private var downloadedURL: URL?
+        private let downloadedURL = OSAllocatedUnfairLock<URL?>(initialState: nil)
 
         init(
             continuation: CheckedContinuation<URL, Error>,
@@ -192,7 +197,7 @@ struct HTTPResponse: Sendable {
                 try FileManager.default.moveItem(
                     at: location, to: stableURL
                 )
-                downloadedURL = stableURL
+                downloadedURL.withLock { $0 = stableURL }
             } catch {
                 // Handled in didCompleteWithError
             }
@@ -235,7 +240,8 @@ struct HTTPResponse: Sendable {
                 )
                 return
             }
-            guard let url = downloadedURL else {
+            let savedURL = downloadedURL.withLock { $0 }
+            guard let url = savedURL else {
                 continuation.resume(
                     throwing: TranscodingError.downloadFailed(
                         "Download completed but file not saved"
