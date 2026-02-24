@@ -63,7 +63,7 @@ public struct VariantPlaylistBuilder: Sendable {
     /// - Returns: Master playlist M3U8 string.
     public func buildMasterPlaylist(
         presets: [QualityPreset],
-        videoCodec: VideoCodec,
+        videoCodec: OutputVideoCodec,
         config: TranscodingConfig
     ) -> String {
         let sorted = presets.sorted {
@@ -88,7 +88,7 @@ public struct VariantPlaylistBuilder: Sendable {
 
     private func buildVariant(
         from preset: QualityPreset,
-        videoCodec: VideoCodec,
+        videoCodec: OutputVideoCodec,
         uri: String
     ) -> Variant {
         Variant(

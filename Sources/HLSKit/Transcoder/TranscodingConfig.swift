@@ -19,11 +19,11 @@ public struct TranscodingConfig: Sendable, Hashable {
 
     /// Video codec to use for encoding.
     /// Default: `.h264`
-    public var videoCodec: VideoCodec
+    public var videoCodec: OutputVideoCodec
 
     /// Audio codec to use for encoding.
     /// Default: `.aac`
-    public var audioCodec: AudioCodec
+    public var audioCodec: OutputAudioCodec
 
     /// Container format for segmented output.
     /// Default: `.fragmentedMP4`
@@ -76,8 +76,8 @@ public struct TranscodingConfig: Sendable, Hashable {
     ///   - twoPass: Whether to use two-pass encoding.
     ///   - metadata: Custom metadata key-value pairs.
     public init(
-        videoCodec: VideoCodec = .h264,
-        audioCodec: AudioCodec = .aac,
+        videoCodec: OutputVideoCodec = .h264,
+        audioCodec: OutputAudioCodec = .aac,
         containerFormat: SegmentationConfig.ContainerFormat = .fragmentedMP4,
         segmentDuration: Double = 6.0,
         generatePlaylist: Bool = true,
@@ -102,13 +102,13 @@ public struct TranscodingConfig: Sendable, Hashable {
     }
 }
 
-// MARK: - VideoCodec
+// MARK: - OutputVideoCodec
 
-/// Video codec for encoding.
+/// Video codec for encoding output.
 ///
 /// Defines the video compression standard to use during
 /// transcoding. Compatibility varies by platform and device.
-public enum VideoCodec: String, Sendable, Hashable, Codable,
+public enum OutputVideoCodec: String, Sendable, Hashable, Codable,
     CaseIterable
 {
     /// H.264 / AVC — widest compatibility.
@@ -124,13 +124,13 @@ public enum VideoCodec: String, Sendable, Hashable, Codable,
     case av1
 }
 
-// MARK: - AudioCodec
+// MARK: - OutputAudioCodec
 
-/// Audio codec for encoding.
+/// Audio codec for encoding output.
 ///
 /// Defines the audio compression standard to use during
 /// transcoding. AAC is the standard for HLS.
-public enum AudioCodec: String, Sendable, Hashable, Codable,
+public enum OutputAudioCodec: String, Sendable, Hashable, Codable,
     CaseIterable
 {
     /// AAC-LC — standard for HLS.

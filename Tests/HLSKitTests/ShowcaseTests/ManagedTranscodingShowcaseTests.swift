@@ -48,21 +48,21 @@ struct ManagedTranscoderShowcase {
         let input = try ManagedTestHelper.createInput(in: dir)
         let outputDir = dir.appendingPathComponent("output")
 
-        actor ProgressCapture {
-            var values: [Double] = []
-            func add(_ v: Double) { values.append(v) }
-        }
-        let capture = ProgressCapture()
+        let (stream, continuation) = AsyncStream.makeStream(of: Double.self)
 
         let sut = ManagedTestHelper.makeSUT()
         _ = try await sut.transcode(
             input: input, outputDirectory: outputDir,
             config: TranscodingConfig(),
-            progress: { v in Task { await capture.add(v) } }
+            progress: { v in continuation.yield(v) }
         )
+        continuation.finish()
 
-        try await Task.sleep(for: .milliseconds(50))
-        let values = await capture.values
+        var values: [Double] = []
+        for await v in stream {
+            values.append(v)
+        }
+
         #expect(!values.isEmpty)
         #expect(values.contains(where: { $0 >= 0.05 }))
         #expect(values.contains(where: { $0 >= 0.80 }))

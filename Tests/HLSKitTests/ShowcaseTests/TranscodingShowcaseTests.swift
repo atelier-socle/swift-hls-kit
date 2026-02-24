@@ -74,19 +74,19 @@ struct QualityPresetShowcase {
         #expect(config.hardwareAcceleration == true)
     }
 
-    @Test("TranscodingConfig — all video codecs")
-    func videoCodecs() {
-        #expect(VideoCodec.h264.rawValue == "h264")
-        #expect(VideoCodec.h265.rawValue == "h265")
-        #expect(VideoCodec.vp9.rawValue == "vp9")
-        #expect(VideoCodec.av1.rawValue == "av1")
+    @Test("TranscodingConfig — all output video codecs")
+    func outputVideoCodecs() {
+        #expect(OutputVideoCodec.h264.rawValue == "h264")
+        #expect(OutputVideoCodec.h265.rawValue == "h265")
+        #expect(OutputVideoCodec.vp9.rawValue == "vp9")
+        #expect(OutputVideoCodec.av1.rawValue == "av1")
     }
 
-    @Test("TranscodingConfig — all audio codecs")
-    func audioCodecs() {
-        #expect(AudioCodec.aac.rawValue == "aac")
-        #expect(AudioCodec.heAAC.rawValue == "heAAC")
-        #expect(AudioCodec.opus.rawValue == "opus")
+    @Test("TranscodingConfig — all output audio codecs")
+    func outputAudioCodecs() {
+        #expect(OutputAudioCodec.aac.rawValue == "aac")
+        #expect(OutputAudioCodec.heAAC.rawValue == "heAAC")
+        #expect(OutputAudioCodec.opus.rawValue == "opus")
     }
 
     @Test("TranscodingResult — output metadata with speed factor")

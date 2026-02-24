@@ -21,6 +21,8 @@ enum AppleHLSRules {
         results += validateResolutionLadder(playlist)
         results += validateBandwidthOrder(playlist)
         results += validateHDCP(playlist)
+        results += validateVideoRange(playlist)
+        results += validateSupplementalCodecs(playlist)
         return results
     }
 
@@ -202,6 +204,47 @@ extension AppleHLSRules {
                         field: "variants[\(i)].hdcpLevel",
                         ruleSet: .appleHLS,
                         ruleId: "APPLE-2.6-hdcp"
+                    ))
+            }
+        }
+        return results
+    }
+
+    private static func validateVideoRange(
+        _ playlist: MasterPlaylist
+    ) -> [ValidationResult] {
+        var results: [ValidationResult] = []
+        let videoRanges = Set(playlist.variants.compactMap(\.videoRange))
+        if videoRanges.count > 1 {
+            results.append(
+                ValidationResult(
+                    severity: .warning,
+                    message:
+                        "Master playlist contains mixed VIDEO-RANGE values. "
+                        + "Ensure proper variant grouping for HDR/SDR.",
+                    field: "variants",
+                    ruleSet: .appleHLS,
+                    ruleId: "APPLE-2.7-video-range"
+                ))
+        }
+        return results
+    }
+
+    private static func validateSupplementalCodecs(
+        _ playlist: MasterPlaylist
+    ) -> [ValidationResult] {
+        var results: [ValidationResult] = []
+        for (i, variant) in playlist.variants.enumerated() {
+            if variant.supplementalCodecs != nil && variant.codecs == nil {
+                results.append(
+                    ValidationResult(
+                        severity: .warning,
+                        message:
+                            "SUPPLEMENTAL-CODECS present without CODECS. "
+                            + "The CODECS attribute should also be specified.",
+                        field: "variants[\(i)].supplementalCodecs",
+                        ruleSet: .appleHLS,
+                        ruleId: "APPLE-2.8-supplemental-codecs"
                     ))
             }
         }

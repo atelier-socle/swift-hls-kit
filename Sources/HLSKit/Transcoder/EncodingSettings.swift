@@ -130,12 +130,12 @@
 
         // MARK: - Codec Mapping
 
-        /// Map ``VideoCodec`` to `AVVideoCodecType`.
+        /// Map ``OutputVideoCodec`` to `AVVideoCodecType`.
         ///
         /// - Parameter codec: The HLSKit video codec.
         /// - Returns: The corresponding AVFoundation codec type.
         static func avCodecType(
-            for codec: VideoCodec
+            for codec: OutputVideoCodec
         ) -> AVVideoCodecType {
             switch codec {
             case .h264:
@@ -160,7 +160,7 @@
         static func avProfileLevel(
             profile: VideoProfile?,
             level: String?,
-            codec: VideoCodec
+            codec: OutputVideoCodec
         ) -> String {
             guard codec == .h264 else {
                 return AVVideoProfileLevelH264HighAutoLevel
@@ -188,12 +188,12 @@
             }
         }
 
-        /// Map ``AudioCodec`` to Core Audio `AudioFormatID`.
+        /// Map ``OutputAudioCodec`` to Core Audio `AudioFormatID`.
         ///
         /// - Parameter codec: The HLSKit audio codec.
         /// - Returns: The corresponding Core Audio format ID.
         static func audioFormatID(
-            for codec: AudioCodec
+            for codec: OutputAudioCodec
         ) -> AudioFormatID {
             switch codec {
             case .aac:

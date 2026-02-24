@@ -37,6 +37,17 @@ public struct Variant: Sendable, Hashable, Codable {
     /// The closed-captions rendition group identifier, or `nil` for `NONE`.
     public var closedCaptions: ClosedCaptionsValue?
 
+    /// The video dynamic range. SDR if not specified (default per Apple HLS spec).
+    ///
+    /// Corresponds to the `VIDEO-RANGE` attribute in `EXT-X-STREAM-INF`.
+    public var videoRange: VideoRange?
+
+    /// Supplemental codecs (e.g., Dolby Vision enhancement layer).
+    ///
+    /// A comma-separated list of codec strings for supplemental media.
+    /// Corresponds to the `SUPPLEMENTAL-CODECS` attribute.
+    public var supplementalCodecs: String?
+
     /// The URI of the media playlist for this variant.
     public var uri: String
 
@@ -54,6 +65,8 @@ public struct Variant: Sendable, Hashable, Codable {
     ///   - video: An optional video group identifier.
     ///   - subtitles: An optional subtitles group identifier.
     ///   - closedCaptions: An optional closed-captions value.
+    ///   - videoRange: An optional video dynamic range.
+    ///   - supplementalCodecs: An optional supplemental codecs string.
     public init(
         bandwidth: Int,
         resolution: Resolution? = nil,
@@ -65,7 +78,9 @@ public struct Variant: Sendable, Hashable, Codable {
         audio: String? = nil,
         video: String? = nil,
         subtitles: String? = nil,
-        closedCaptions: ClosedCaptionsValue? = nil
+        closedCaptions: ClosedCaptionsValue? = nil,
+        videoRange: VideoRange? = nil,
+        supplementalCodecs: String? = nil
     ) {
         self.bandwidth = bandwidth
         self.resolution = resolution
@@ -78,6 +93,8 @@ public struct Variant: Sendable, Hashable, Codable {
         self.video = video
         self.subtitles = subtitles
         self.closedCaptions = closedCaptions
+        self.videoRange = videoRange
+        self.supplementalCodecs = supplementalCodecs
     }
 }
 

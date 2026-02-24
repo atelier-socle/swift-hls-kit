@@ -247,12 +247,10 @@ extension TagParser {
             }
         }
 
-        var hdcpLevel: HDCPLevel?
-        if let raw = attributeParser.optionalEnumString(
-            "HDCP-LEVEL", from: attrs
-        ) {
-            hdcpLevel = HDCPLevel(rawValue: raw)
-        }
+        let hdcpLevel = attributeParser.optionalEnumString("HDCP-LEVEL", from: attrs)
+            .flatMap { HDCPLevel(rawValue: $0) }
+        let videoRange = attributeParser.optionalEnumString("VIDEO-RANGE", from: attrs)
+            .flatMap { VideoRange(rawValue: $0) }
 
         return Variant(
             bandwidth: bandwidth,
@@ -279,7 +277,11 @@ extension TagParser {
             subtitles: attributeParser.optionalQuotedString(
                 "SUBTITLES", from: attrs
             ),
-            closedCaptions: closedCaptions
+            closedCaptions: closedCaptions,
+            videoRange: videoRange,
+            supplementalCodecs: attributeParser.optionalQuotedString(
+                "SUPPLEMENTAL-CODECS", from: attrs
+            )
         )
     }
 
@@ -299,12 +301,8 @@ extension TagParser {
             "URI", from: attrs, tag: "EXT-X-I-FRAME-STREAM-INF"
         )
 
-        var hdcpLevel: HDCPLevel?
-        if let raw = attributeParser.optionalEnumString(
-            "HDCP-LEVEL", from: attrs
-        ) {
-            hdcpLevel = HDCPLevel(rawValue: raw)
-        }
+        let hdcpLevel = attributeParser.optionalEnumString("HDCP-LEVEL", from: attrs)
+            .flatMap { HDCPLevel(rawValue: $0) }
 
         return IFrameVariant(
             bandwidth: bandwidth,

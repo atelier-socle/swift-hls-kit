@@ -204,7 +204,7 @@ extension QualityPreset {
     /// - Parameter videoCodec: The video codec used.
     /// - Returns: A codec string suitable for HLS playlists.
     public func codecsString(
-        videoCodec: VideoCodec = .h264
+        videoCodec: OutputVideoCodec = .h264
     ) -> String {
         var parts: [String] = []
         if !isAudioOnly {
@@ -222,7 +222,7 @@ extension QualityPreset {
 extension QualityPreset {
 
     private func videoCodecString(
-        videoCodec: VideoCodec
+        videoCodec: OutputVideoCodec
     ) -> String {
         switch videoCodec {
         case .h264:

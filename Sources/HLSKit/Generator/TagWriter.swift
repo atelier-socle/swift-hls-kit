@@ -172,6 +172,12 @@ extension TagWriter {
         if let hdcp = variant.hdcpLevel {
             attrs.append(("HDCP-LEVEL", hdcp.rawValue))
         }
+        if let videoRange = variant.videoRange {
+            attrs.append(("VIDEO-RANGE", videoRange.rawValue))
+        }
+        if let supplemental = variant.supplementalCodecs {
+            attrs.append(("SUPPLEMENTAL-CODECS", quoted(supplemental)))
+        }
     }
 
     /// Writes an `EXT-X-I-FRAME-STREAM-INF` tag line.

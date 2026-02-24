@@ -229,13 +229,13 @@ struct TransportErrorShowcase {
 @Suite("Error Showcase — Additional Codec Enums")
 struct AdditionalCodecShowcase {
 
-    @Test("AudioCodec — all 5 codecs including heAACv2 and flac")
-    func allAudioCodecs() {
-        #expect(AudioCodec.aac.rawValue == "aac")
-        #expect(AudioCodec.heAAC.rawValue == "heAAC")
-        #expect(AudioCodec.heAACv2.rawValue == "heAACv2")
-        #expect(AudioCodec.flac.rawValue == "flac")
-        #expect(AudioCodec.opus.rawValue == "opus")
+    @Test("OutputAudioCodec — all 5 codecs including heAACv2 and flac")
+    func allOutputAudioCodecs() {
+        #expect(OutputAudioCodec.aac.rawValue == "aac")
+        #expect(OutputAudioCodec.heAAC.rawValue == "heAAC")
+        #expect(OutputAudioCodec.heAACv2.rawValue == "heAACv2")
+        #expect(OutputAudioCodec.flac.rawValue == "flac")
+        #expect(OutputAudioCodec.opus.rawValue == "opus")
     }
 
     @Test("EncryptionMethod — sampleAESCTR raw value")

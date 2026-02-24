@@ -75,11 +75,11 @@ struct TranscodingConfigTests {
         #expect(c1 != c2)
     }
 
-    // MARK: - VideoCodec
+    // MARK: - OutputVideoCodec
 
-    @Test("VideoCodec: all cases")
-    func videoCodecCases() {
-        let cases = VideoCodec.allCases
+    @Test("OutputVideoCodec: all cases")
+    func outputVideoCodecCases() {
+        let cases = OutputVideoCodec.allCases
         #expect(cases.count == 4)
         #expect(cases.contains(.h264))
         #expect(cases.contains(.h265))
@@ -87,17 +87,17 @@ struct TranscodingConfigTests {
         #expect(cases.contains(.av1))
     }
 
-    @Test("VideoCodec raw values")
-    func videoCodecRawValues() {
-        #expect(VideoCodec.h264.rawValue == "h264")
-        #expect(VideoCodec.h265.rawValue == "h265")
+    @Test("OutputVideoCodec raw values")
+    func outputVideoCodecRawValues() {
+        #expect(OutputVideoCodec.h264.rawValue == "h264")
+        #expect(OutputVideoCodec.h265.rawValue == "h265")
     }
 
-    // MARK: - AudioCodec
+    // MARK: - OutputAudioCodec
 
-    @Test("AudioCodec: all cases")
-    func audioCodecCases() {
-        let cases = AudioCodec.allCases
+    @Test("OutputAudioCodec: all cases")
+    func outputAudioCodecCases() {
+        let cases = OutputAudioCodec.allCases
         #expect(cases.count == 5)
         #expect(cases.contains(.aac))
         #expect(cases.contains(.heAAC))
@@ -106,9 +106,9 @@ struct TranscodingConfigTests {
         #expect(cases.contains(.opus))
     }
 
-    @Test("AudioCodec raw values")
-    func audioCodecRawValues() {
-        #expect(AudioCodec.aac.rawValue == "aac")
-        #expect(AudioCodec.heAAC.rawValue == "heAAC")
+    @Test("OutputAudioCodec raw values")
+    func outputAudioCodecRawValues() {
+        #expect(OutputAudioCodec.aac.rawValue == "aac")
+        #expect(OutputAudioCodec.heAAC.rawValue == "heAAC")
     }
 }
