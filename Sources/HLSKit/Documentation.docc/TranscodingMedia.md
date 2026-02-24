@@ -167,8 +167,15 @@ let m3u8 = builder.buildMasterPlaylist(
 // m3u8 contains #EXTM3U, BANDWIDTH=, RESOLUTION=
 ```
 
+## Cloud Transcoding
+
+For server-side applications where local GPU or FFmpeg are not available, ``ManagedTranscoder`` delegates transcoding to cloud providers (Cloudflare Stream, AWS MediaConvert, Mux). It conforms to the same ``Transcoder`` protocol — callers don't need to know whether transcoding happens locally or in the cloud.
+
+See <doc:ManagedTranscoding> for configuration and usage.
+
 ## Next Steps
 
+- <doc:ManagedTranscoding> — Cloud transcoding with Cloudflare, AWS, and Mux
 - <doc:SegmentingMedia> — Segment transcoded output into HLS segments
 - <doc:EncryptingSegments> — Encrypt transcoded segments
 - <doc:HLSEngine> — Use the engine facade for end-to-end workflows

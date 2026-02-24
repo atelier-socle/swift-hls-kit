@@ -10,9 +10,9 @@ import Foundation
 /// download).
 ///
 /// ## Implementations
-/// - ``CloudflareStreamProvider`` — Cloudflare Stream API
-/// - ``AWSMediaConvertProvider`` — AWS Elemental MediaConvert
-/// - ``MuxProvider`` — Mux Video API
+/// - `CloudflareStreamProvider` — Cloudflare Stream API
+/// - `AWSMediaConvertProvider` — AWS Elemental MediaConvert
+/// - `MuxProvider` — Mux Video API
 ///
 /// - SeeAlso: ``ManagedTranscoder``
 public protocol ManagedTranscodingProvider: Sendable {

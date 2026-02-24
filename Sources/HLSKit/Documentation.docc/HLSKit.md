@@ -33,6 +33,7 @@ let output = engine.generate(manifest)
 - **Validate** — Check conformance against RFC 8216 and Apple HLS rules
 - **Segment** — Split MP4 files into fMP4 or MPEG-TS segments with automatic playlist generation
 - **Transcode** — Hardware-accelerated encoding via Apple VideoToolbox or FFmpeg
+- **Cloud Transcode** — Delegate to Cloudflare Stream, AWS MediaConvert, or Mux — same `Transcoder` protocol, zero local GPU
 - **Encrypt** — AES-128 full-segment and SAMPLE-AES sample-level encryption
 - **Builder DSL** — `@resultBuilder` syntax for constructing playlists declaratively
 - **CLI** — `hlskit-cli` command-line tool with 6 commands for common workflows
@@ -141,6 +142,14 @@ let output = engine.generate(manifest)
 - ``AudioCodec``
 - ``VariantPlaylistBuilder``
 
+### Cloud Transcoding
+
+- <doc:ManagedTranscoding>
+- ``ManagedTranscoder``
+- ``ManagedTranscodingProvider``
+- ``ManagedTranscodingConfig``
+- ``ManagedTranscodingJob``
+
 ### Encryption
 
 - ``SegmentEncryptor``
@@ -200,6 +209,7 @@ let output = engine.generate(manifest)
 - <doc:ValidatingManifests>
 - <doc:SegmentingMedia>
 - <doc:TranscodingMedia>
+- <doc:ManagedTranscoding>
 - <doc:EncryptingSegments>
 - <doc:HLSEngine>
 - <doc:CLIReference>

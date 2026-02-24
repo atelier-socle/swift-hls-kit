@@ -24,6 +24,7 @@ Part of the [Atelier Socle](https://www.atelier-socle.com) ecosystem.
 - **Byte-range** — Single-file byte-range segmentation mode
 - **Transcode (Apple)** — Hardware-accelerated encoding via Apple VideoToolbox
 - **Transcode (FFmpeg)** — Cross-platform transcoding with quality presets and multi-variant output
+- **Cloud Transcode** — Delegate to Cloudflare Stream, AWS MediaConvert, or Mux via `ManagedTranscoder` — same `Transcoder` protocol, zero local GPU required
 - **Encrypt (AES-128)** — Full-segment AES-128-CBC encryption with key rotation
 - **Encrypt (SAMPLE-AES)** — Sample-level encryption for video NAL units and audio ADTS frames
 - **Key management** — Key generation, IV derivation (RFC 8216), and key file I/O
@@ -163,6 +164,33 @@ let result = try await transcoder.transcode(
 
 Quality presets: `.p360`, `.p480`, `.p720`, `.p1080`, `.p2160`, `.audioOnly`
 
+### Cloud Transcoding
+
+For server-side applications where local GPU or FFmpeg are not available, `ManagedTranscoder` delegates to cloud providers while conforming to the same `Transcoder` protocol. Upload and download stream data to/from disk without loading entire files into memory.
+
+```swift
+let config = ManagedTranscodingConfig(
+    provider: .cloudflareStream,
+    apiKey: "cf-api-token",
+    accountID: "cf-account-123"
+)
+let transcoder = ManagedTranscoder(config: config)
+
+let result = try await transcoder.transcode(
+    input: inputURL, outputDirectory: outputDir,
+    config: TranscodingConfig(),
+    progress: { print("\($0 * 100)%") }
+)
+```
+
+| Provider | Authentication | Best For |
+|---|---|---|
+| Cloudflare Stream | API token (Bearer) | Zero egress costs, global CDN |
+| AWS MediaConvert | Access key + secret (SigV4) | Enterprise, existing AWS infra |
+| Mux | Token ID + secret (Basic Auth) | Simplest API, auto-adaptive bitrate |
+
+Features: streaming upload/download (no full file in RAM), granular progress through 5 phases (upload, job creation, polling, download, complete), configurable quality presets (`.p360` to `.p2160`, `.audioOnly`), automatic cloud asset cleanup.
+
 ### Encryption
 
 ```swift
@@ -185,12 +213,12 @@ Sources/
 │   ├── Builder/            # @resultBuilder DSL for playlists
 │   ├── Validator/          # HLSValidator, RFC 8216 + Apple HLS rules
 │   ├── Segmenter/          # MP4Segmenter, TSSegmenter
-│   ├── Transcoder/         # AppleTranscoder, FFmpegTranscoder, QualityPreset
+│   ├── Transcoder/         # AppleTranscoder, FFmpegTranscoder, ManagedTranscoder, QualityPreset
 │   ├── Encryption/         # SegmentEncryptor, SampleEncryptor, KeyManager
 │   ├── Container/          # MP4BoxReader, MP4InfoParser, BinaryReader/Writer
 │   ├── Transport/          # TSSegmentBuilder, TSPacket, PESPacketizer, ADTSConverter
 │   ├── Engine/             # HLSEngine facade
-│   └── Documentation.docc/ # 10 DocC articles
+│   └── Documentation.docc/ # 11 DocC articles
 ├── HLSKitCommands/         # CLI command implementations
 └── HLSKitCLI/              # CLI entry point (@main)
 ```
@@ -254,7 +282,7 @@ The project includes a comprehensive test suite using Swift Testing (`import Tes
 | Generator | M3U8 output, builder DSL, tag writing |
 | Validator | RFC 8216, Apple HLS rules, severity levels |
 | Segmenter | fMP4, MPEG-TS, byte-range, config, playlist generation |
-| Transcoder | Quality presets, Apple/FFmpeg availability, multi-variant |
+| Transcoder | Quality presets, Apple/FFmpeg/Managed availability, multi-variant |
 | Encryption | AES-128, SAMPLE-AES, key management, round-trip |
 | Container | MP4 box reading, sample tables, init/media segment writing |
 | Transport | TS packets, PAT/PMT, PES, ADTS/AnnexB conversion |
@@ -270,7 +298,7 @@ All tests run on macOS in CI. No XCTest — 100% Swift Testing.
 
 Full API documentation is available as a DocC catalog bundled with the package. Open the project in Xcode and select **Product > Build Documentation** to browse it locally.
 
-The catalog includes 10 guides:
+The catalog includes 11 guides:
 
 | Guide | Content |
 |-------|---------|
@@ -280,6 +308,7 @@ The catalog includes 10 guides:
 | Validating Manifests | HLSValidator, rule sets, severity levels, reports |
 | Segmenting Media | MP4Segmenter, TSSegmenter, byte-range, config |
 | Transcoding Media | Quality presets, Apple/FFmpeg transcoders, multi-variant |
+| Cloud Transcoding | ManagedTranscoder, Cloudflare/AWS/Mux providers, streaming upload |
 | Encrypting Segments | AES-128, SAMPLE-AES, KeyManager, EncryptionConfig |
 | HLSEngine | High-level facade for end-to-end workflows |
 | CLI Reference | 6 commands with options, examples, JSON config |
