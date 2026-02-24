@@ -7,20 +7,19 @@
 /// channels, and AAC profile. Use the built-in presets for common
 /// podcast and music encoding scenarios.
 ///
-/// ## Presets
+/// ## Audio Presets
 /// ```swift
 /// let config = LiveEncoderConfiguration.podcastAudio
 /// let config = LiveEncoderConfiguration.musicAudio
 /// ```
 ///
-/// ## Custom Configuration
+/// ## Video Configuration
 /// ```swift
 /// let config = LiveEncoderConfiguration(
-///     audioCodec: .aac,
-///     bitrate: 256_000,
-///     sampleRate: 48000,
-///     channels: 2,
-///     aacProfile: .lc
+///     videoCodec: .h264,
+///     videoBitrate: 2_800_000,
+///     keyframeInterval: 6.0,
+///     qualityPreset: .p720
 /// )
 /// ```
 public struct LiveEncoderConfiguration: Sendable, Equatable, Hashable {
@@ -31,7 +30,7 @@ public struct LiveEncoderConfiguration: Sendable, Equatable, Hashable {
     /// Video codec for video encoding. Nil for audio-only.
     public let videoCodec: VideoCodec?
 
-    /// Target bitrate in bits per second.
+    /// Target audio bitrate in bits per second.
     public let bitrate: Int
 
     /// Output sample rate in Hz.
@@ -46,24 +45,39 @@ public struct LiveEncoderConfiguration: Sendable, Equatable, Hashable {
     /// Whether to pass through audio without re-encoding.
     public let passthrough: Bool
 
+    /// Target video bitrate in bits per second. Nil uses preset default.
+    public let videoBitrate: Int?
+
+    /// Keyframe interval in seconds. Nil uses preset default.
+    public let keyframeInterval: Double?
+
+    /// Quality preset for resolution, profile, and bitrate defaults.
+    public let qualityPreset: QualityPreset?
+
     /// Creates a live encoder configuration.
     ///
     /// - Parameters:
-    ///   - audioCodec: Target audio codec.
+    ///   - audioCodec: Target audio codec. Default is AAC.
     ///   - videoCodec: Target video codec. Nil for audio-only.
-    ///   - bitrate: Target bitrate in bits per second.
+    ///   - bitrate: Target audio bitrate in bits per second.
     ///   - sampleRate: Output sample rate in Hz.
     ///   - channels: Number of output channels.
     ///   - aacProfile: AAC profile. Nil for non-AAC codecs.
     ///   - passthrough: Whether to pass through without re-encoding.
+    ///   - videoBitrate: Target video bitrate. Nil uses preset default.
+    ///   - keyframeInterval: Keyframe interval in seconds.
+    ///   - qualityPreset: Quality preset for video settings.
     public init(
-        audioCodec: AudioCodec,
+        audioCodec: AudioCodec = .aac,
         videoCodec: VideoCodec? = nil,
-        bitrate: Int,
-        sampleRate: Double,
-        channels: Int,
+        bitrate: Int = 0,
+        sampleRate: Double = 44_100,
+        channels: Int = 2,
         aacProfile: AACProfile? = nil,
-        passthrough: Bool = false
+        passthrough: Bool = false,
+        videoBitrate: Int? = nil,
+        keyframeInterval: Double? = nil,
+        qualityPreset: QualityPreset? = nil
     ) {
         self.audioCodec = audioCodec
         self.videoCodec = videoCodec
@@ -72,6 +86,41 @@ public struct LiveEncoderConfiguration: Sendable, Equatable, Hashable {
         self.channels = channels
         self.aacProfile = aacProfile
         self.passthrough = passthrough
+        self.videoBitrate = videoBitrate
+        self.keyframeInterval = keyframeInterval
+        self.qualityPreset = qualityPreset
+    }
+}
+
+// MARK: - Video Overrides
+
+extension LiveEncoderConfiguration {
+
+    /// Creates a copy with video settings overridden per-preset.
+    ///
+    /// Used by ``MultiBitrateEncoder`` to create per-preset configs
+    /// from a shared base configuration.
+    ///
+    /// - Parameters:
+    ///   - videoBitrate: Override video bitrate.
+    ///   - qualityPreset: Override quality preset.
+    /// - Returns: A new configuration with the overridden values.
+    func withVideoOverrides(
+        videoBitrate: Int?,
+        qualityPreset: QualityPreset
+    ) -> LiveEncoderConfiguration {
+        LiveEncoderConfiguration(
+            audioCodec: audioCodec,
+            videoCodec: videoCodec,
+            bitrate: bitrate,
+            sampleRate: sampleRate,
+            channels: channels,
+            aacProfile: aacProfile,
+            passthrough: passthrough,
+            videoBitrate: videoBitrate,
+            keyframeInterval: keyframeInterval,
+            qualityPreset: qualityPreset
+        )
     }
 }
 
