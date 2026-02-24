@@ -76,11 +76,195 @@ struct HTTPResponse: Sendable {
     let body: Data
 }
 
+// MARK: - Streaming Delegates
+
+#if canImport(Darwin)
+
+    /// Bridges URLSession upload callbacks to async/await via
+    /// `CheckedContinuation`. Created per-upload operation.
+    private final class UploadDelegate: NSObject,
+        URLSessionTaskDelegate, URLSessionDataDelegate
+    {
+        private let continuation: CheckedContinuation<HTTPResponse, Error>
+        private let progressHandler: (@Sendable (Double) -> Void)?
+        private var receivedData = Data()
+
+        init(
+            continuation: CheckedContinuation<
+                HTTPResponse, Error
+            >,
+            progress: (@Sendable (Double) -> Void)?
+        ) {
+            self.continuation = continuation
+            self.progressHandler = progress
+        }
+
+        func urlSession(
+            _ session: URLSession,
+            task: URLSessionTask,
+            didSendBodyData bytesSent: Int64,
+            totalBytesSent: Int64,
+            totalBytesExpectedToSend: Int64
+        ) {
+            guard totalBytesExpectedToSend > 0 else { return }
+            let fraction =
+                Double(totalBytesSent)
+                / Double(totalBytesExpectedToSend)
+            progressHandler?(fraction)
+        }
+
+        func urlSession(
+            _ session: URLSession,
+            dataTask: URLSessionDataTask,
+            didReceive data: Data
+        ) {
+            receivedData.append(data)
+        }
+
+        func urlSession(
+            _ session: URLSession,
+            task: URLSessionTask,
+            didCompleteWithError error: Error?
+        ) {
+            session.finishTasksAndInvalidate()
+            if let error {
+                continuation.resume(throwing: error)
+                return
+            }
+            progressHandler?(1.0)
+            guard
+                let httpResponse =
+                    task.response as? HTTPURLResponse
+            else {
+                continuation.resume(
+                    throwing: TranscodingError.uploadFailed(
+                        "Invalid HTTP response"
+                    )
+                )
+                return
+            }
+            let headers = httpResponse.allHeaderFields
+                .reduce(
+                    into: [String: String]()
+                ) { result, pair in
+                    if let key = pair.key as? String,
+                        let value = pair.value as? String
+                    {
+                        result[key] = value
+                    }
+                }
+            continuation.resume(
+                returning: HTTPResponse(
+                    statusCode: httpResponse.statusCode,
+                    headers: headers,
+                    body: receivedData
+                )
+            )
+        }
+    }
+
+    /// Bridges URLSession download callbacks to async/await via
+    /// `CheckedContinuation`. Created per-download operation.
+    private final class DownloadDelegate: NSObject,
+        URLSessionDownloadDelegate
+    {
+        private let continuation: CheckedContinuation<URL, Error>
+        private let progressHandler: (@Sendable (Double) -> Void)?
+        private var downloadedURL: URL?
+
+        init(
+            continuation: CheckedContinuation<URL, Error>,
+            progress: (@Sendable (Double) -> Void)?
+        ) {
+            self.continuation = continuation
+            self.progressHandler = progress
+        }
+
+        func urlSession(
+            _ session: URLSession,
+            downloadTask: URLSessionDownloadTask,
+            didFinishDownloadingTo location: URL
+        ) {
+            let stableURL =
+                FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+            do {
+                try FileManager.default.moveItem(
+                    at: location, to: stableURL
+                )
+                downloadedURL = stableURL
+            } catch {
+                // Handled in didCompleteWithError
+            }
+        }
+
+        func urlSession(
+            _ session: URLSession,
+            downloadTask: URLSessionDownloadTask,
+            didWriteData bytesWritten: Int64,
+            totalBytesWritten: Int64,
+            totalBytesExpectedToWrite: Int64
+        ) {
+            guard totalBytesExpectedToWrite > 0 else { return }
+            let fraction =
+                Double(totalBytesWritten)
+                / Double(totalBytesExpectedToWrite)
+            progressHandler?(fraction)
+        }
+
+        func urlSession(
+            _ session: URLSession,
+            task: URLSessionTask,
+            didCompleteWithError error: Error?
+        ) {
+            session.finishTasksAndInvalidate()
+            if let error {
+                continuation.resume(throwing: error)
+                return
+            }
+            progressHandler?(1.0)
+            if let httpResponse =
+                task.response as? HTTPURLResponse,
+                !(200..<300).contains(httpResponse.statusCode)
+            {
+                continuation.resume(
+                    throwing: TranscodingError.downloadFailed(
+                        "Download failed with status "
+                            + "\(httpResponse.statusCode)"
+                    )
+                )
+                return
+            }
+            guard let url = downloadedURL else {
+                continuation.resume(
+                    throwing: TranscodingError.downloadFailed(
+                        "Download completed but file not saved"
+                    )
+                )
+                return
+            }
+            continuation.resume(returning: url)
+        }
+    }
+
+#endif
+
 // MARK: - URLSession Implementation
 
 /// Default HTTP client using Foundation URLSession.
 ///
-/// Used by ``ManagedTranscoder`` for production network calls.
+/// On Apple platforms, upload and download operations stream
+/// data to/from disk without loading entire files into memory.
+/// Each streaming operation creates a dedicated `URLSession`
+/// with a per-operation delegate, then invalidates it on
+/// completion.
+///
+/// On Linux, upload and download fall back to in-memory
+/// `Data(contentsOf:)` due to `FoundationNetworking`
+/// delegate limitations.
+///
+/// The `request()` method (for small JSON payloads) uses the
+/// shared session directly — no streaming needed.
 struct URLSessionHTTPClient: HTTPClient, Sendable {
 
     private let session: URLSession
@@ -136,42 +320,67 @@ struct URLSessionHTTPClient: HTTPClient, Sendable {
         headers: [String: String],
         progress: (@Sendable (Double) -> Void)?
     ) async throws -> HTTPResponse {
-        let fileData = try Data(contentsOf: fileURL)
-
         var request = URLRequest(url: url)
         request.httpMethod = method
         for (key, value) in headers {
-            request.setValue(value, forHTTPHeaderField: key)
-        }
-        request.httpBody = fileData
-
-        progress?(0.5)
-        let (data, response) = try await session.data(
-            for: request
-        )
-        progress?(1.0)
-
-        guard let httpResponse = response as? HTTPURLResponse
-        else {
-            throw TranscodingError.uploadFailed(
-                "Invalid HTTP response"
+            request.setValue(
+                value, forHTTPHeaderField: key
             )
         }
 
-        let responseHeaders = httpResponse.allHeaderFields
-            .reduce(into: [String: String]()) { result, pair in
-                if let key = pair.key as? String,
-                    let value = pair.value as? String
-                {
-                    result[key] = value
-                }
+        #if canImport(Darwin)
+            return try await withCheckedThrowingContinuation { continuation in
+                let delegate = UploadDelegate(
+                    continuation: continuation,
+                    progress: progress
+                )
+                let config =
+                    URLSessionConfiguration.default
+                config.protocolClasses =
+                    self.session.configuration
+                    .protocolClasses
+                let opSession = URLSession(
+                    configuration: config,
+                    delegate: delegate,
+                    delegateQueue: nil
+                )
+                opSession.uploadTask(
+                    with: request, fromFile: fileURL
+                ).resume()
             }
-
-        return HTTPResponse(
-            statusCode: httpResponse.statusCode,
-            headers: responseHeaders,
-            body: data
-        )
+        #else
+            let fileData = try Data(contentsOf: fileURL)
+            request.httpBody = fileData
+            progress?(0.5)
+            let (data, response) = try await session.data(
+                for: request
+            )
+            progress?(1.0)
+            guard
+                let httpResponse =
+                    response as? HTTPURLResponse
+            else {
+                throw TranscodingError.uploadFailed(
+                    "Invalid HTTP response"
+                )
+            }
+            let responseHeaders =
+                httpResponse.allHeaderFields
+                .reduce(
+                    into: [String: String]()
+                ) { result, pair in
+                    if let key = pair.key as? String,
+                        let value = pair.value as? String
+                    {
+                        result[key] = value
+                    }
+                }
+            return HTTPResponse(
+                statusCode: httpResponse.statusCode,
+                headers: responseHeaders,
+                body: data
+            )
+        #endif
     }
 
     func download(
@@ -182,23 +391,53 @@ struct URLSessionHTTPClient: HTTPClient, Sendable {
     ) async throws {
         var request = URLRequest(url: url)
         for (key, value) in headers {
-            request.setValue(value, forHTTPHeaderField: key)
-        }
-
-        progress?(0.5)
-        let (data, response) = try await session.data(
-            for: request
-        )
-        progress?(1.0)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-            (200..<300).contains(httpResponse.statusCode)
-        else {
-            throw TranscodingError.downloadFailed(
-                "Download failed from \(url)"
+            request.setValue(
+                value, forHTTPHeaderField: key
             )
         }
 
-        try data.write(to: destination)
+        #if canImport(Darwin)
+            let tempURL =
+                try await withCheckedThrowingContinuation { continuation in
+                    let delegate = DownloadDelegate(
+                        continuation: continuation,
+                        progress: progress
+                    )
+                    let config =
+                        URLSessionConfiguration.default
+                    config.protocolClasses =
+                        self.session.configuration
+                        .protocolClasses
+                    let opSession = URLSession(
+                        configuration: config,
+                        delegate: delegate,
+                        delegateQueue: nil
+                    )
+                    opSession.downloadTask(
+                        with: request
+                    ).resume()
+                }
+            try FileManager.default.moveItem(
+                at: tempURL, to: destination
+            )
+        #else
+            progress?(0.5)
+            let (data, response) = try await session.data(
+                for: request
+            )
+            progress?(1.0)
+            guard
+                let httpResponse =
+                    response as? HTTPURLResponse,
+                (200..<300).contains(
+                    httpResponse.statusCode
+                )
+            else {
+                throw TranscodingError.downloadFailed(
+                    "Download failed from \(url)"
+                )
+            }
+            try data.write(to: destination)
+        #endif
     }
 }
