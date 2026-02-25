@@ -46,33 +46,33 @@ struct BlockingPlaylistRequestTests {
     // MARK: - fromQueryParameters
 
     @Test("fromQueryParameters with valid _HLS_msn")
-    func fromParamsValidMSN() {
+    func fromParamsValidMSN() throws {
         let request = BlockingPlaylistRequest.fromQueryParameters(
             ["_HLS_msn": "47"]
         )
-        let result = try? #require(request)
-        #expect(result?.mediaSequenceNumber == 47)
-        #expect(result?.partIndex == nil)
-        #expect(result?.skipRequest == nil)
+        let result = try #require(request)
+        #expect(result.mediaSequenceNumber == 47)
+        #expect(result.partIndex == nil)
+        #expect(result.skipRequest == nil)
     }
 
     @Test("fromQueryParameters with _HLS_msn and _HLS_part")
-    func fromParamsWithPart() {
+    func fromParamsWithPart() throws {
         let request = BlockingPlaylistRequest.fromQueryParameters(
             ["_HLS_msn": "47", "_HLS_part": "3"]
         )
-        let result = try? #require(request)
-        #expect(result?.mediaSequenceNumber == 47)
-        #expect(result?.partIndex == 3)
+        let result = try #require(request)
+        #expect(result.mediaSequenceNumber == 47)
+        #expect(result.partIndex == 3)
     }
 
     @Test("fromQueryParameters with _HLS_skip=YES")
-    func fromParamsWithSkip() {
+    func fromParamsWithSkip() throws {
         let request = BlockingPlaylistRequest.fromQueryParameters(
             ["_HLS_msn": "47", "_HLS_skip": "YES"]
         )
-        let result = try? #require(request)
-        #expect(result?.skipRequest == .yes)
+        let result = try #require(request)
+        #expect(result.skipRequest == .yes)
     }
 
     @Test("fromQueryParameters returns nil without _HLS_msn")
