@@ -39,7 +39,7 @@
         @Test(
             "Same audio source: both produce valid output",
             .enabled(if: FFmpegProcessRunner.isAvailable),
-            .timeLimit(.minutes(2))
+            .timeLimit(.minutes(1))
         )
         func sameSourceBothValid() async throws {
             defer { cleanup() }
@@ -93,7 +93,7 @@
         @Test(
             "Same source: segment counts similar",
             .enabled(if: FFmpegProcessRunner.isAvailable),
-            .timeLimit(.minutes(2))
+            .timeLimit(.minutes(1))
         )
         func sameSourceSegmentCounts() async throws {
             defer { cleanup() }

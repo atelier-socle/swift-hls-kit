@@ -77,7 +77,7 @@
 
         @Test(
             "Transcode MP4 video+audio file",
-            .timeLimit(.minutes(2))
+            .timeLimit(.minutes(1))
         )
         func transcodeVideo() async throws {
             defer { cleanup() }
@@ -113,7 +113,7 @@
 
         @Test(
             "Transcode reports progress via callback",
-            .timeLimit(.minutes(2))
+            .timeLimit(.minutes(1))
         )
         func transcodeReportsProgress() async throws {
             defer { cleanup() }
@@ -192,7 +192,7 @@
 
         @Test(
             "Transcode video produces segmented output",
-            .timeLimit(.minutes(2))
+            .timeLimit(.minutes(1))
         )
         func transcodeProducesSegments() async throws {
             defer { cleanup() }
