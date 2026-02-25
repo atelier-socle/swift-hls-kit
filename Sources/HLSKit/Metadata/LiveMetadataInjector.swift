@@ -34,12 +34,16 @@ public actor LiveMetadataInjector {
         /// EXT-X-DATERANGE tags for active ranges.
         public var dateRanges: String
 
+        /// Interstitial DATERANGE tags (separate from regular dateRanges).
+        public var interstitials: String
+
         /// ID3 timed metadata to inject into the segment.
         public var id3Data: Data?
 
         /// Whether any metadata is present.
         public var hasMetadata: Bool {
-            programDateTime != nil || !dateRanges.isEmpty || id3Data != nil
+            programDateTime != nil || !dateRanges.isEmpty
+                || !interstitials.isEmpty || id3Data != nil
         }
     }
 
@@ -54,17 +58,23 @@ public actor LiveMetadataInjector {
     /// Pending ID3 metadata to inject into the next segment.
     public var pendingID3: [ID3TimedMetadata]
 
+    /// Interstitial manager (optional, set if interstitials are needed).
+    public let interstitialManager: InterstitialManager?
+
     /// Creates a live metadata injector.
     ///
     /// - Parameters:
     ///   - dateTimeSync: Program date-time synchronizer.
     ///   - dateRangeManager: Date range lifecycle manager.
+    ///   - interstitialManager: Optional interstitial manager.
     public init(
         dateTimeSync: ProgramDateTimeSync = ProgramDateTimeSync(),
-        dateRangeManager: DateRangeManager = DateRangeManager()
+        dateRangeManager: DateRangeManager = DateRangeManager(),
+        interstitialManager: InterstitialManager? = nil
     ) {
         self.dateTimeSync = dateTimeSync
         self.dateRangeManager = dateRangeManager
+        self.interstitialManager = interstitialManager
         self.pendingID3 = []
     }
 
@@ -95,6 +105,14 @@ public actor LiveMetadataInjector {
         // Date ranges
         let dateRangeLines = await dateRangeManager.renderDateRanges()
 
+        // Interstitials
+        let interstitialLines: String
+        if let mgr = interstitialManager {
+            interstitialLines = await mgr.renderInterstitials()
+        } else {
+            interstitialLines = ""
+        }
+
         // ID3 metadata
         let id3Data: Data?
         if !pendingID3.isEmpty {
@@ -111,6 +129,7 @@ public actor LiveMetadataInjector {
         return SegmentMetadata(
             programDateTime: pdtTag,
             dateRanges: dateRangeLines,
+            interstitials: interstitialLines,
             id3Data: id3Data
         )
     }
@@ -186,6 +205,9 @@ public actor LiveMetadataInjector {
     public func reset() async {
         dateTimeSync.reset()
         await dateRangeManager.reset()
+        if let mgr = interstitialManager {
+            await mgr.reset()
+        }
         pendingID3.removeAll()
     }
 }
