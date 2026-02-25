@@ -10,18 +10,15 @@ import Testing
 struct HLSInterstitialTests {
 
     private let refDate = Date(timeIntervalSince1970: 1_740_000_000)
+    private let adURI = "https://ads.example.com/ad.m3u8"
 
     // MARK: - Initialization
 
     @Test("Init with assetURI → asset is .uri")
     func initWithURI() {
-        let ad = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8"
-        )
+        let ad = HLSInterstitial(id: "ad-1", startDate: refDate, assetURI: adURI)
         if case .uri(let uri) = ad.asset {
-            #expect(uri == "https://ads.example.com/ad.m3u8")
+            #expect(uri == adURI)
         } else {
             Issue.record("Expected .uri asset")
         }
@@ -30,8 +27,7 @@ struct HLSInterstitialTests {
     @Test("Init with assetListURI → asset is .list")
     func initWithList() {
         let ad = HLSInterstitial(
-            id: "pod-1",
-            startDate: refDate,
+            id: "pod-1", startDate: refDate,
             assetListURI: "https://ads.example.com/pod.json"
         )
         if case .list(let uri) = ad.asset {
@@ -44,9 +40,7 @@ struct HLSInterstitialTests {
     @Test("Restrictions stored correctly")
     func restrictions() {
         let ad = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8",
+            id: "ad-1", startDate: refDate, assetURI: adURI,
             restrictions: [.jump, .seek]
         )
         #expect(ad.restrictions.contains(.jump))
@@ -56,20 +50,14 @@ struct HLSInterstitialTests {
 
     @Test("ResumeMode.liveEdge is default")
     func defaultResumeMode() {
-        let ad = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8"
-        )
+        let ad = HLSInterstitial(id: "ad-1", startDate: refDate, assetURI: adURI)
         #expect(ad.resumeMode == .liveEdge)
     }
 
     @Test("ResumeMode.offset stores resumeOffset")
     func resumeOffset() {
         let ad = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8",
+            id: "ad-1", startDate: refDate, assetURI: adURI,
             resumeMode: .offset(10.0)
         )
         #expect(ad.resumeOffset == 10.0)
@@ -79,11 +67,7 @@ struct HLSInterstitialTests {
 
     @Test("toManagedDateRange preserves id and startDate")
     func toManagedDateRangeBasic() {
-        let ad = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8"
-        )
+        let ad = HLSInterstitial(id: "ad-1", startDate: refDate, assetURI: adURI)
         let managed = ad.toManagedDateRange()
         #expect(managed.id == "ad-1")
         #expect(managed.startDate == refDate)
@@ -91,38 +75,25 @@ struct HLSInterstitialTests {
 
     @Test("toManagedDateRange includes X-ASSET-URI")
     func toManagedDateRangeURI() {
-        let ad = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8"
-        )
+        let ad = HLSInterstitial(id: "ad-1", startDate: refDate, assetURI: adURI)
         let managed = ad.toManagedDateRange()
-        #expect(
-            managed.customAttributes["X-ASSET-URI"]
-                == "https://ads.example.com/ad.m3u8"
-        )
+        #expect(managed.customAttributes["X-ASSET-URI"] == adURI)
     }
 
     @Test("toManagedDateRange includes X-ASSET-LIST for list")
     func toManagedDateRangeList() {
         let ad = HLSInterstitial(
-            id: "pod-1",
-            startDate: refDate,
+            id: "pod-1", startDate: refDate,
             assetListURI: "https://ads.example.com/pod.json"
         )
         let managed = ad.toManagedDateRange()
-        #expect(
-            managed.customAttributes["X-ASSET-LIST"]
-                == "https://ads.example.com/pod.json"
-        )
+        #expect(managed.customAttributes["X-ASSET-LIST"] == "https://ads.example.com/pod.json")
     }
 
     @Test("toManagedDateRange includes X-RESTRICT with JUMP,SEEK")
     func toManagedDateRangeRestrictions() {
         let ad = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8",
+            id: "ad-1", startDate: refDate, assetURI: adURI,
             restrictions: [.jump, .seek]
         )
         let managed = ad.toManagedDateRange()
@@ -134,9 +105,7 @@ struct HLSInterstitialTests {
     @Test("toManagedDateRange includes X-RESUME-OFFSET")
     func toManagedDateRangeResumeOffset() {
         let ad = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8",
+            id: "ad-1", startDate: refDate, assetURI: adURI,
             resumeMode: .offset(10.0)
         )
         let managed = ad.toManagedDateRange()
@@ -148,11 +117,8 @@ struct HLSInterstitialTests {
     @Test("renderTag produces valid EXT-X-DATERANGE line")
     func renderTag() {
         let ad = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8",
-            duration: 30.0,
-            restrictions: [.jump, .seek]
+            id: "ad-1", startDate: refDate, assetURI: adURI,
+            duration: 30.0, restrictions: [.jump, .seek]
         )
         let tag = ad.renderTag()
         #expect(tag.contains("#EXT-X-DATERANGE:"))
@@ -164,11 +130,7 @@ struct HLSInterstitialTests {
 
     @Test("SkipControl: skipAfter in output")
     func skipControl() {
-        var ad = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8"
-        )
+        var ad = HLSInterstitial(id: "ad-1", startDate: refDate, assetURI: adURI)
         ad.skipControl = HLSInterstitial.SkipControl(skipAfter: 5.0)
         let managed = ad.toManagedDateRange()
         #expect(managed.customAttributes["X-SKIP-AFTER"] == "5.0")
@@ -176,25 +138,15 @@ struct HLSInterstitialTests {
 
     @Test("SkipControl: buttonStart in output")
     func skipButtonStart() {
-        var ad = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8"
-        )
-        ad.skipControl = HLSInterstitial.SkipControl(
-            skipAfter: 5.0, buttonStart: 2.0
-        )
+        var ad = HLSInterstitial(id: "ad-1", startDate: refDate, assetURI: adURI)
+        ad.skipControl = HLSInterstitial.SkipControl(skipAfter: 5.0, buttonStart: 2.0)
         let managed = ad.toManagedDateRange()
         #expect(managed.customAttributes["X-SKIP-BUTTON-START"] == "2.0")
     }
 
     @Test("PreloadConfig: preloadURI in output")
     func preloadConfig() {
-        var ad = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8"
-        )
+        var ad = HLSInterstitial(id: "ad-1", startDate: refDate, assetURI: adURI)
         ad.preload = HLSInterstitial.PreloadConfig(
             preloadURI: "https://ads.example.com/preload.m3u8"
         )
@@ -209,42 +161,24 @@ struct HLSInterstitialTests {
 
     @Test("Duration in output")
     func durationInOutput() {
-        let ad = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8",
-            duration: 30.0
-        )
-        let tag = ad.renderTag()
-        #expect(tag.contains("DURATION"))
+        let ad = HLSInterstitial(id: "ad-1", startDate: refDate, assetURI: adURI, duration: 30.0)
+        #expect(ad.renderTag().contains("DURATION"))
     }
 
     @Test("PlannedDuration in output")
     func plannedDurationInOutput() {
-        var ad = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8"
-        )
+        var ad = HLSInterstitial(id: "ad-1", startDate: refDate, assetURI: adURI)
         ad.plannedDuration = 60.0
-        let tag = ad.renderTag()
-        #expect(tag.contains("PLANNED-DURATION"))
+        #expect(ad.renderTag().contains("PLANNED-DURATION"))
     }
 
     // MARK: - SCTE-35
 
     @Test("SCTE-35 marker in output")
     func scte35InOutput() {
-        var ad = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8"
-        )
-        ad.scte35 = SCTE35Marker.spliceInsert(
-            eventId: 42, duration: 30.0, outOfNetwork: true
-        )
-        let tag = ad.renderTag()
-        #expect(tag.contains("SCTE35-OUT"))
+        var ad = HLSInterstitial(id: "ad-1", startDate: refDate, assetURI: adURI)
+        ad.scte35 = SCTE35Marker.spliceInsert(eventId: 42, duration: 30.0, outOfNetwork: true)
+        #expect(ad.renderTag().contains("SCTE35-OUT"))
     }
 
     // MARK: - Parsing
@@ -252,17 +186,11 @@ struct HLSInterstitialTests {
     @Test("fromDateRange round-trip")
     func fromDateRangeRoundTrip() {
         var original = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8",
-            duration: 30.0,
-            restrictions: [.jump, .seek]
+            id: "ad-1", startDate: refDate, assetURI: adURI,
+            duration: 30.0, restrictions: [.jump, .seek]
         )
-        original.skipControl = HLSInterstitial.SkipControl(
-            skipAfter: 5.0, buttonStart: 2.0
-        )
-        let managed = original.toManagedDateRange()
-        let parsed = HLSInterstitial.fromDateRange(managed)
+        original.skipControl = HLSInterstitial.SkipControl(skipAfter: 5.0, buttonStart: 2.0)
+        let parsed = HLSInterstitial.fromDateRange(original.toManagedDateRange())
         #expect(parsed != nil)
         #expect(parsed?.id == "ad-1")
         #expect(parsed?.restrictions.contains(.jump) == true)
@@ -272,52 +200,31 @@ struct HLSInterstitialTests {
     @Test("fromDateRange with non-interstitial returns nil")
     func fromDateRangeNonInterstitial() {
         let range = DateRangeManager.ManagedDateRange(
-            id: "chapter-1",
-            startDate: refDate,
-            endDate: nil,
-            duration: nil,
-            plannedDuration: nil,
-            classAttribute: "com.chapter",
-            endOnNext: false,
+            id: "chapter-1", startDate: refDate, endDate: nil,
+            duration: nil, plannedDuration: nil,
+            classAttribute: "com.chapter", endOnNext: false,
             customAttributes: [:],
-            scte35Cmd: nil,
-            scte35Out: nil,
-            scte35In: nil,
-            state: .open
+            scte35Cmd: nil, scte35Out: nil, scte35In: nil, state: .open
         )
-        let result = HLSInterstitial.fromDateRange(range)
-        #expect(result == nil)
+        #expect(HLSInterstitial.fromDateRange(range) == nil)
     }
-
-    // MARK: - SCTE-35 Return (outOfNetwork=false)
 
     @Test("SCTE-35 return marker produces SCTE35-IN")
     func scte35ReturnInOutput() {
-        var ad = HLSInterstitial(
-            id: "ad-return",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8"
-        )
-        ad.scte35 = SCTE35Marker.spliceInsert(
-            eventId: 42, outOfNetwork: false
-        )
+        var ad = HLSInterstitial(id: "ad-return", startDate: refDate, assetURI: adURI)
+        ad.scte35 = SCTE35Marker.spliceInsert(eventId: 42, outOfNetwork: false)
         let managed = ad.toManagedDateRange()
         #expect(managed.scte35In != nil)
         #expect(managed.scte35Out == nil)
     }
 
-    // MARK: - fromDateRange: Asset List Round-Trip
-
     @Test("fromDateRange with asset list round-trip")
     func fromDateRangeAssetList() {
         let original = HLSInterstitial(
-            id: "pod-1",
-            startDate: refDate,
-            assetListURI: "https://ads.example.com/pod.json",
-            duration: 60.0
+            id: "pod-1", startDate: refDate,
+            assetListURI: "https://ads.example.com/pod.json", duration: 60.0
         )
-        let managed = original.toManagedDateRange()
-        let parsed = HLSInterstitial.fromDateRange(managed)
+        let parsed = HLSInterstitial.fromDateRange(original.toManagedDateRange())
         #expect(parsed != nil)
         if case .list(let uri) = parsed?.asset {
             #expect(uri == "https://ads.example.com/pod.json")
@@ -326,37 +233,24 @@ struct HLSInterstitialTests {
         }
     }
 
-    // MARK: - fromDateRange: Resume Offset Round-Trip
-
     @Test("fromDateRange with resume offset round-trip")
     func fromDateRangeResumeOffset() {
         let original = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8",
+            id: "ad-1", startDate: refDate, assetURI: adURI,
             resumeMode: .offset(15.0)
         )
-        let managed = original.toManagedDateRange()
-        let parsed = HLSInterstitial.fromDateRange(managed)
+        let parsed = HLSInterstitial.fromDateRange(original.toManagedDateRange())
         #expect(parsed?.resumeOffset == 15.0)
         #expect(parsed?.resumeMode == .offset(15.0))
     }
 
-    // MARK: - fromDateRange: Preload Round-Trip
-
     @Test("fromDateRange with preload config round-trip")
     func fromDateRangePreload() {
-        var original = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8"
-        )
+        var original = HLSInterstitial(id: "ad-1", startDate: refDate, assetURI: adURI)
         original.preload = HLSInterstitial.PreloadConfig(
-            preloadURI: "https://ads.example.com/preload.m3u8",
-            preloadAhead: 10.0
+            preloadURI: "https://ads.example.com/preload.m3u8", preloadAhead: 10.0
         )
-        let managed = original.toManagedDateRange()
-        let parsed = HLSInterstitial.fromDateRange(managed)
+        let parsed = HLSInterstitial.fromDateRange(original.toManagedDateRange())
         #expect(parsed?.preload?.preloadURI != nil)
         #expect(parsed?.preload?.preloadAhead == 10.0)
     }
@@ -365,16 +259,8 @@ struct HLSInterstitialTests {
 
     @Test("Equatable: same interstitials are equal")
     func equatable() {
-        let a = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8"
-        )
-        let b = HLSInterstitial(
-            id: "ad-1",
-            startDate: refDate,
-            assetURI: "https://ads.example.com/ad.m3u8"
-        )
+        let a = HLSInterstitial(id: "ad-1", startDate: refDate, assetURI: adURI)
+        let b = HLSInterstitial(id: "ad-1", startDate: refDate, assetURI: adURI)
         #expect(a == b)
     }
 }
