@@ -71,18 +71,31 @@ public actor IncrementalSegmenter: LiveSegmenter {
 
     private var ringBuffer: SegmentRingBuffer
 
+    // MARK: - Segment Transform
+
+    private let segmentTransform: (@Sendable (LiveSegment, [EncodedFrame]) -> LiveSegment)?
+
     /// Creates an incremental segmenter.
     ///
-    /// - Parameter configuration: Segmentation configuration.
-    ///   Defaults to ``LiveSegmenterConfiguration/standardLive``.
+    /// - Parameters:
+    ///   - configuration: Segmentation configuration.
+    ///     Defaults to ``LiveSegmenterConfiguration/standardLive``.
+    ///   - segmentTransform: Optional closure to transform a
+    ///     completed segment (e.g., wrap raw data in fMP4 via
+    ///     ``CMAFWriter``). Receives the raw segment and its
+    ///     source frames. Defaults to nil (no transform).
     public init(
-        configuration: LiveSegmenterConfiguration = .standardLive
+        configuration: LiveSegmenterConfiguration = .standardLive,
+        segmentTransform:
+            (@Sendable (LiveSegment, [EncodedFrame]) -> LiveSegment)? =
+            nil
     ) {
         self.configuration = configuration
         self.nextSegmentIndex = configuration.startIndex
         self.ringBuffer = SegmentRingBuffer(
             capacity: configuration.ringBufferSize
         )
+        self.segmentTransform = segmentTransform
 
         let (stream, continuation) = AsyncStream.makeStream(
             of: LiveSegment.self
@@ -238,7 +251,7 @@ public actor IncrementalSegmenter: LiveSegmenter {
             nextSegmentIndex
         )
 
-        let segment = LiveSegment(
+        var segment = LiveSegment(
             index: nextSegmentIndex,
             data: data,
             duration: currentDuration,
@@ -249,6 +262,10 @@ public actor IncrementalSegmenter: LiveSegmenter {
             frameCount: currentFrames.count,
             codecs: currentCodecs
         )
+
+        if let transform = segmentTransform {
+            segment = transform(segment, currentFrames)
+        }
 
         nextSegmentIndex += 1
         return segment
