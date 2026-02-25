@@ -40,6 +40,27 @@ struct PlaylistRenderer: Sendable {
         let playlistType: PlaylistType?
         let hasEndList: Bool
         let version: Int
+        let initSegmentURI: String?
+
+        init(
+            segments: [LiveSegment],
+            sequenceTracker: MediaSequenceTracker,
+            metadata: LivePlaylistMetadata,
+            targetDuration: Int,
+            playlistType: PlaylistType?,
+            hasEndList: Bool,
+            version: Int,
+            initSegmentURI: String? = nil
+        ) {
+            self.segments = segments
+            self.sequenceTracker = sequenceTracker
+            self.metadata = metadata
+            self.targetDuration = targetDuration
+            self.playlistType = playlistType
+            self.hasEndList = hasEndList
+            self.version = version
+            self.initSegmentURI = initSegmentURI
+        }
     }
 
     /// Render a complete M3U8 playlist from the given context.
@@ -51,6 +72,11 @@ struct PlaylistRenderer: Sendable {
 
         appendHeader(to: &lines, context: ctx)
         appendMetadata(to: &lines, metadata: ctx.metadata)
+
+        if let uri = ctx.initSegmentURI {
+            lines.append("#EXT-X-MAP:URI=\"\(uri)\"")
+        }
+
         appendSegments(
             to: &lines,
             segments: ctx.segments,

@@ -3,46 +3,37 @@
 
 import Foundation
 
-/// Live playlist with a sliding window of recent segments.
+/// Live playlist with time-based DVR (Digital Video Recorder) windowing.
 ///
-/// As new segments are added, old segments beyond the window size
-/// are evicted. `EXT-X-MEDIA-SEQUENCE` increments with each eviction.
+/// Unlike ``SlidingWindowPlaylist`` which keeps a fixed count of segments,
+/// this playlist keeps all segments within a configurable temporal window.
 ///
-/// This produces a standard live HLS playlist WITHOUT
-/// `EXT-X-PLAYLIST-TYPE` (the absence of this tag indicates a live,
-/// sliding-window playlist).
-///
-/// ## Window behavior
-/// The window size is defined by `windowSize` (number of segments
-/// to keep). When a new segment is added and the playlist exceeds
-/// `windowSize`, the oldest segment is evicted.
-///
-/// ## Target duration
-/// `EXT-X-TARGETDURATION` is set to the ceiling of the maximum
-/// segment duration currently in the playlist (per HLS spec
-/// requirement).
+/// ## Use cases
+/// - Sports broadcasts with 2-hour rewind
+/// - News channels with 30-minute DVR
+/// - Long-running events where the DVR window is measured in time,
+///   not segments
 ///
 /// ## Usage
 /// ```swift
-/// let playlist = SlidingWindowPlaylist(configuration: .init(
-///     windowSize: 5,
+/// let playlist = DVRPlaylist(configuration: .init(
+///     dvrWindowDuration: 7200, // 2 hours
 ///     targetDuration: 6.0
 /// ))
 /// for await segment in segmenter.segments {
 ///     try await playlist.addSegment(segment)
 ///     let m3u8 = await playlist.renderPlaylist()
-///     // Serve m3u8 to clients...
 /// }
 /// let final = await playlist.endStream()
 /// ```
-public actor SlidingWindowPlaylist: LivePlaylistManager {
+public actor DVRPlaylist: LivePlaylistManager {
 
     /// Configuration for this playlist.
-    public let configuration: SlidingWindowConfiguration
+    public let configuration: DVRPlaylistConfiguration
 
     // MARK: - State
 
-    private var segments: [LiveSegment] = []
+    private var dvrBuffer: DVRBuffer
     private var sequenceTracker = MediaSequenceTracker()
     private var metadata = LivePlaylistMetadata()
     private var hasEnded = false
@@ -55,13 +46,16 @@ public actor SlidingWindowPlaylist: LivePlaylistManager {
     /// Stream of playlist lifecycle events.
     nonisolated public let events: AsyncStream<LivePlaylistEvent>
 
-    /// Creates a sliding window playlist.
+    /// Creates a DVR playlist.
     ///
     /// - Parameter configuration: Playlist configuration.
     public init(
-        configuration: SlidingWindowConfiguration = .init()
+        configuration: DVRPlaylistConfiguration = .init()
     ) {
         self.configuration = configuration
+        self.dvrBuffer = DVRBuffer(
+            windowDuration: configuration.dvrWindowDuration
+        )
 
         let (stream, continuation) = AsyncStream.makeStream(
             of: LivePlaylistEvent.self
@@ -83,7 +77,7 @@ public actor SlidingWindowPlaylist: LivePlaylistManager {
             throw LivePlaylistError.streamEnded
         }
 
-        segments.append(segment)
+        dvrBuffer.append(segment)
         sequenceTracker.segmentAdded(index: segment.index)
         eventContinuation.yield(
             .segmentAdded(
@@ -92,12 +86,12 @@ public actor SlidingWindowPlaylist: LivePlaylistManager {
             )
         )
 
-        // Evict if over window size
-        while segments.count > configuration.windowSize {
-            let evicted = segments.removeFirst()
-            sequenceTracker.segmentEvicted(index: evicted.index)
+        // Evict expired segments
+        let evicted = dvrBuffer.evictExpired()
+        for seg in evicted {
+            sequenceTracker.segmentEvicted(index: seg.index)
             eventContinuation.yield(
-                .segmentRemoved(index: evicted.index)
+                .segmentRemoved(index: seg.index)
             )
         }
 
@@ -115,9 +109,7 @@ public actor SlidingWindowPlaylist: LivePlaylistManager {
         guard !hasEnded else {
             throw LivePlaylistError.streamEnded
         }
-        // Phase 11 (LL-HLS) will fully implement partial segments.
-        // For now, validate the parent exists.
-        guard segments.contains(where: { $0.index == index }) else {
+        guard dvrBuffer.segment(at: index) != nil else {
             throw LivePlaylistError.parentSegmentNotFound(index)
         }
     }
@@ -135,6 +127,28 @@ public actor SlidingWindowPlaylist: LivePlaylistManager {
     public func renderPlaylist() async -> String {
         renderer.render(
             context: .init(
+                segments: dvrBuffer.allSegments,
+                sequenceTracker: sequenceTracker,
+                metadata: metadata,
+                targetDuration: computeTargetDuration(),
+                playlistType: nil,
+                hasEndList: false,
+                version: configuration.version,
+                initSegmentURI: configuration.initSegmentURI
+            ))
+    }
+
+    /// Render a DVR playlist starting from a temporal offset.
+    ///
+    /// - Parameter offset: Seconds from the live edge
+    ///   (negative = rewind).
+    /// - Returns: M3U8 playlist starting from the offset.
+    public func renderPlaylistFromOffset(
+        _ offset: TimeInterval
+    ) async -> String {
+        let segments = dvrBuffer.segmentsFromOffset(offset)
+        return renderer.render(
+            context: .init(
                 segments: segments,
                 sequenceTracker: sequenceTracker,
                 metadata: metadata,
@@ -150,7 +164,7 @@ public actor SlidingWindowPlaylist: LivePlaylistManager {
         hasEnded = true
         let m3u8 = renderer.render(
             context: .init(
-                segments: segments,
+                segments: dvrBuffer.allSegments,
                 sequenceTracker: sequenceTracker,
                 metadata: metadata,
                 targetDuration: computeTargetDuration(),
@@ -173,27 +187,30 @@ public actor SlidingWindowPlaylist: LivePlaylistManager {
     }
 
     public var segmentCount: Int {
-        segments.count
+        dvrBuffer.count
     }
 
-    // MARK: - Extra Accessors
+    // MARK: - DVR Accessors
 
-    /// All segments currently in the playlist window.
-    public var currentSegments: [LiveSegment] {
-        segments
+    /// Total duration of buffered content.
+    public var totalDuration: TimeInterval {
+        dvrBuffer.totalDuration
     }
 
-    /// The computed EXT-X-TARGETDURATION value.
-    public var targetDuration: Int {
-        computeTargetDuration()
+    /// Total data size of buffered content (bytes).
+    public var totalDataSize: Int {
+        dvrBuffer.totalDataSize
+    }
+
+    /// All segments in the DVR buffer.
+    public var allSegments: [LiveSegment] {
+        dvrBuffer.allSegments
     }
 
     // MARK: - Private
 
-    /// Compute EXT-X-TARGETDURATION: ceiling of the maximum segment
-    /// duration. Falls back to configuration target if no segments.
     private func computeTargetDuration() -> Int {
-        if let maxDuration = segments.map(\.duration).max() {
+        if let maxDuration = dvrBuffer.allSegments.map(\.duration).max() {
             return Int(ceil(maxDuration))
         }
         return Int(ceil(configuration.targetDuration))

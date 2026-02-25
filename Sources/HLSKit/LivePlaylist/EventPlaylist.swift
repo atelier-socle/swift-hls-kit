@@ -121,7 +121,8 @@ public actor EventPlaylist: LivePlaylistManager {
                 targetDuration: computeTargetDuration(),
                 playlistType: .event,
                 hasEndList: false,
-                version: configuration.version
+                version: configuration.version,
+                initSegmentURI: configuration.initSegmentURI
             ))
     }
 
@@ -135,7 +136,8 @@ public actor EventPlaylist: LivePlaylistManager {
                 targetDuration: computeTargetDuration(),
                 playlistType: .event,
                 hasEndList: true,
-                version: configuration.version
+                version: configuration.version,
+                initSegmentURI: configuration.initSegmentURI
             ))
         eventContinuation.yield(.streamEnded)
         eventContinuation.finish()

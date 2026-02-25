@@ -26,19 +26,29 @@ public struct SlidingWindowConfiguration: Sendable, Equatable {
     /// Default: 7 (supports EXT-X-MAP for fMP4).
     public var version: Int
 
+    /// URI for the fMP4 initialization segment.
+    ///
+    /// When set, `#EXT-X-MAP:URI="<value>"` is rendered in the
+    /// playlist. Required for fMP4 (CMAF) content.
+    /// Default: `nil` (no EXT-X-MAP tag).
+    public var initSegmentURI: String?
+
     /// Creates a sliding window configuration.
     ///
     /// - Parameters:
     ///   - windowSize: Number of segments to keep.
     ///   - targetDuration: Expected target segment duration.
     ///   - version: HLS version to declare.
+    ///   - initSegmentURI: URI for fMP4 init segment.
     public init(
         windowSize: Int = 5,
         targetDuration: TimeInterval = 6.0,
-        version: Int = 7
+        version: Int = 7,
+        initSegmentURI: String? = nil
     ) {
         self.windowSize = windowSize
         self.targetDuration = targetDuration
         self.version = version
+        self.initSegmentURI = initSegmentURI
     }
 }
