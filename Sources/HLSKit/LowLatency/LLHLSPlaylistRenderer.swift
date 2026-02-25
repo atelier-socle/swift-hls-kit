@@ -115,6 +115,24 @@ public struct LLHLSPlaylistRenderer: Sendable {
         return lines.joined(separator: "\n")
     }
 
+    // MARK: - Rendition Reports
+
+    /// Render `EXT-X-RENDITION-REPORT` tags for alternate renditions.
+    ///
+    /// Called after all segments/parts in the playlist, before
+    /// `EXT-X-ENDLIST` if present.
+    ///
+    /// - Parameter reports: Rendition reports for alternate playlists.
+    /// - Returns: M3U8 lines for all rendition reports.
+    public static func renderRenditionReports(
+        _ reports: [RenditionReport]
+    ) -> String {
+        guard !reports.isEmpty else { return "" }
+        let writer = TagWriter()
+        return reports.map { writer.writeRenditionReport($0) }
+            .joined(separator: "\n")
+    }
+
     // MARK: - Server Control
 
     /// Render `EXT-X-SERVER-CONTROL` line.

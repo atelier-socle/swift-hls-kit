@@ -29,6 +29,7 @@ public actor LLHLSManager {
     private var sequenceTracker = MediaSequenceTracker()
     private var metadata = LivePlaylistMetadata()
     private var hasEnded = false
+    private var _renditionReports: [RenditionReport] = []
 
     // MARK: - Event Stream
 
@@ -211,7 +212,14 @@ public actor LLHLSManager {
                 sequenceTracker.discontinuitySequence,
             skipDateRanges: skipRequest.skipDateRanges
         )
-        return generator.generateDeltaPlaylist(context: context)
+        var output = generator.generateDeltaPlaylist(context: context)
+        let reports = LLHLSPlaylistRenderer.renderRenditionReports(
+            _renditionReports
+        )
+        if !reports.isEmpty, output.hasSuffix("\n") {
+            output = String(output.dropLast()) + "\n" + reports + "\n"
+        }
+        return output
     }
 
     /// End the stream.
@@ -229,6 +237,20 @@ public actor LLHLSManager {
     /// Update playlist-level metadata.
     public func updateMetadata(_ metadata: LivePlaylistMetadata) {
         self.metadata = metadata
+    }
+
+    /// Set rendition reports for alternate renditions.
+    ///
+    /// These are included at the end of every playlist render.
+    ///
+    /// - Parameter reports: Current rendition reports.
+    public func setRenditionReports(_ reports: [RenditionReport]) {
+        _renditionReports = reports
+    }
+
+    /// Current rendition reports.
+    public var renditionReports: [RenditionReport] {
+        _renditionReports
     }
 
     /// Attach a blocking playlist handler for automatic notifications.
@@ -265,17 +287,13 @@ public actor LLHLSManager {
     private func appendHeader(to lines: inout [String]) {
         lines.append("#EXTM3U")
         lines.append("#EXT-X-VERSION:\(configuration.version)")
-        lines.append(
-            "#EXT-X-TARGETDURATION:\(computeTargetDuration())"
-        )
-        lines.append(
-            "#EXT-X-MEDIA-SEQUENCE:\(sequenceTracker.mediaSequence)"
-        )
-        if sequenceTracker.discontinuitySequence > 0 {
-            lines.append(
-                "#EXT-X-DISCONTINUITY-SEQUENCE:"
-                    + "\(sequenceTracker.discontinuitySequence)"
-            )
+        let td = computeTargetDuration()
+        lines.append("#EXT-X-TARGETDURATION:\(td)")
+        let msn = sequenceTracker.mediaSequence
+        lines.append("#EXT-X-MEDIA-SEQUENCE:\(msn)")
+        let dsn = sequenceTracker.discontinuitySequence
+        if dsn > 0 {
+            lines.append("#EXT-X-DISCONTINUITY-SEQUENCE:\(dsn)")
         }
         lines.append(
             LLHLSPlaylistRenderer.renderPartInf(
@@ -304,23 +322,15 @@ public actor LLHLSManager {
                 lines.append("#EXT-X-DISCONTINUITY")
             }
             if let date = segment.programDateTime {
-                lines.append(
-                    "#EXT-X-PROGRAM-DATE-TIME:" + formatISO8601(date)
-                )
+                lines.append("#EXT-X-PROGRAM-DATE-TIME:" + formatISO8601(date))
             }
-            if let entry = partials.first(where: {
-                $0.segmentIndex == segment.index
-            }) {
+            if let entry = partials.first(where: { $0.segmentIndex == segment.index }) {
                 lines.append(
                     LLHLSPlaylistRenderer.renderSegmentWithPartials(
-                        segment: segment,
-                        partials: entry.partials,
-                        isCurrentSegment: false
+                        segment: segment, partials: entry.partials, isCurrentSegment: false
                     ))
             } else {
-                lines.append(
-                    "#EXTINF:\(formatDuration(segment.duration)),"
-                )
+                lines.append("#EXTINF:\(formatDuration(segment.duration)),")
                 lines.append(segment.filename)
             }
         }
@@ -331,16 +341,11 @@ public actor LLHLSManager {
         partials: [(segmentIndex: Int, partials: [LLPartialSegment])]
     ) {
         guard let current = partials.last,
-            !completedSegments.contains(where: {
-                $0.index == current.segmentIndex
-            })
+            !completedSegments.contains(where: { $0.index == current.segmentIndex })
         else { return }
-
         lines.append(
             LLHLSPlaylistRenderer.renderSegmentWithPartials(
-                segment: nil,
-                partials: current.partials,
-                isCurrentSegment: true
+                segment: nil, partials: current.partials, isCurrentSegment: true
             ))
     }
 
@@ -351,6 +356,12 @@ public actor LLHLSManager {
             lines.append(
                 LLHLSPlaylistRenderer.renderPreloadHint(hint)
             )
+        }
+        let reportsStr = LLHLSPlaylistRenderer.renderRenditionReports(
+            _renditionReports
+        )
+        if !reportsStr.isEmpty {
+            lines.append(reportsStr)
         }
         if hasEnded {
             lines.append("#EXT-X-ENDLIST")
