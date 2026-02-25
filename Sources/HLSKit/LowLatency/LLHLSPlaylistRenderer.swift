@@ -115,6 +115,30 @@ public struct LLHLSPlaylistRenderer: Sendable {
         return lines.joined(separator: "\n")
     }
 
+    // MARK: - Server Control
+
+    /// Render `EXT-X-SERVER-CONTROL` line.
+    ///
+    /// Delegates to ``ServerControlRenderer`` but provides a unified
+    /// API on the playlist renderer.
+    ///
+    /// - Parameters:
+    ///   - config: The server control configuration.
+    ///   - targetDuration: The `EXT-X-TARGETDURATION` value.
+    ///   - partTargetDuration: The `PART-TARGET` value.
+    /// - Returns: A formatted `EXT-X-SERVER-CONTROL` line.
+    public static func renderServerControl(
+        config: ServerControlConfig,
+        targetDuration: TimeInterval,
+        partTargetDuration: TimeInterval
+    ) -> String {
+        ServerControlRenderer.render(
+            config: config,
+            targetDuration: targetDuration,
+            partTargetDuration: partTargetDuration
+        )
+    }
+
     // MARK: - Private
 
     private static func formatDuration(

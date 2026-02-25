@@ -5,39 +5,21 @@ import Foundation
 
 /// Orchestrates the Low-Latency HLS pipeline.
 ///
-/// Manages partial segments, generates preload hints, and renders
-/// LL-HLS compliant playlists. Combines ``PartialSegmentManager``
-/// for partial lifecycle with ``LLHLSPlaylistRenderer`` for tag
-/// rendering.
-///
-/// ## Usage
-/// ```swift
-/// let manager = LLHLSManager(
-///     configuration: .lowLatency
-/// )
-///
-/// // Add partials as encoded chunks arrive
-/// try await manager.addPartial(duration: 0.33, isIndependent: true)
-/// try await manager.addPartial(duration: 0.33, isIndependent: false)
-///
-/// // Complete the segment when target duration is reached
-/// _ = await manager.completeSegment(duration: 2.0, uri: "seg0.m4s")
-///
-/// // Render the playlist
-/// let m3u8 = await manager.renderPlaylist()
-/// ```
-///
-/// ## Events
-/// Observe ``events`` for partial additions, segment completions,
-/// preload hint updates, and stream end.
+/// Manages partial segments, generates preload hints, renders
+/// LL-HLS playlists, and supports server control with delta updates.
+/// Observe ``events`` for lifecycle notifications.
 public actor LLHLSManager {
 
     /// Configuration for this LL-HLS session.
     public let configuration: LLHLSConfiguration
 
+    /// Server control configuration for this session.
+    public let serverControl: ServerControlConfig
+
     // MARK: - Dependencies
 
     private let partialManager: PartialSegmentManager
+    private let deltaGenerator: DeltaUpdateGenerator?
 
     // MARK: - Segment Tracking
 
@@ -54,12 +36,22 @@ public actor LLHLSManager {
     /// Stream of LL-HLS lifecycle events.
     nonisolated public let events: AsyncStream<LLHLSEvent>
 
-    /// Creates an LL-HLS manager.
-    ///
-    /// - Parameter configuration: The LL-HLS configuration.
+    /// Creates an LL-HLS manager with the given configuration.
     public init(configuration: LLHLSConfiguration = .lowLatency) {
         self.configuration = configuration
-
+        let sc =
+            configuration.serverControl
+            ?? .standard(
+                targetDuration: configuration.segmentTargetDuration,
+                partTargetDuration: configuration.partTargetDuration
+            )
+        self.serverControl = sc
+        self.deltaGenerator = sc.canSkipUntil.map {
+            DeltaUpdateGenerator(
+                canSkipUntil: $0,
+                canSkipDateRanges: sc.canSkipDateRanges
+            )
+        }
         self.partialManager = PartialSegmentManager(
             partTargetDuration: configuration.partTargetDuration,
             maxPartialsPerSegment: configuration.maxPartialsPerSegment,
@@ -194,6 +186,46 @@ public actor LLHLSManager {
         return lines.joined(separator: "\n") + "\n"
     }
 
+    /// Render a delta update playlist (for `_HLS_skip=YES` or `v2`).
+    ///
+    /// Returns `nil` if delta updates are not configured or no
+    /// segments can be skipped.
+    ///
+    /// - Parameter skipRequest: The skip request type.
+    /// - Returns: A delta M3U8 playlist string, or `nil`.
+    public func renderDeltaPlaylist(
+        skipRequest: HLSSkipRequest = .yes
+    ) async -> String? {
+        guard let generator = deltaGenerator else { return nil }
+        let td = TimeInterval(computeTargetDuration())
+        let skipCount = generator.skippableSegmentCount(
+            segments: completedSegments, targetDuration: td
+        )
+        guard skipCount > 0 else { return nil }
+
+        let rendering = await partialManager.partialsForRendering()
+        var partialsDict = [Int: [LLPartialSegment]]()
+        for entry in rendering {
+            partialsDict[entry.segmentIndex] = entry.partials
+        }
+        let currentParts = extractCurrentPartials(from: rendering)
+        let hint = await partialManager.currentPreloadHint()
+
+        let context = DeltaUpdateGenerator.DeltaContext(
+            segments: completedSegments,
+            partials: partialsDict,
+            currentPartials: hasEnded ? [] : currentParts,
+            preloadHint: hasEnded ? nil : hint,
+            serverControl: serverControl,
+            configuration: configuration,
+            mediaSequence: sequenceTracker.mediaSequence,
+            discontinuitySequence:
+                sequenceTracker.discontinuitySequence,
+            skipDateRanges: skipRequest.skipDateRanges
+        )
+        return generator.generateDeltaPlaylist(context: context)
+    }
+
     /// End the stream.
     ///
     /// Adds `EXT-X-ENDLIST` to subsequent renders. No more partials
@@ -255,6 +287,12 @@ public actor LLHLSManager {
         }
         lines.append(
             LLHLSPlaylistRenderer.renderPartInf(
+                partTargetDuration: configuration.partTargetDuration
+            ))
+        lines.append(
+            LLHLSPlaylistRenderer.renderServerControl(
+                config: serverControl,
+                targetDuration: configuration.segmentTargetDuration,
                 partTargetDuration: configuration.partTargetDuration
             ))
     }
@@ -329,16 +367,24 @@ public actor LLHLSManager {
 
     // MARK: - Private
 
+    private func extractCurrentPartials(
+        from partials: [(segmentIndex: Int, partials: [LLPartialSegment])]
+    ) -> [LLPartialSegment] {
+        guard let current = partials.last,
+            !completedSegments.contains(where: {
+                $0.index == current.segmentIndex
+            })
+        else { return [] }
+        return current.partials
+    }
+
     private func computeTargetDuration() -> Int {
-        if let max = completedSegments.map(\.duration).max() {
-            return Int(ceil(max))
-        }
-        return Int(ceil(configuration.segmentTargetDuration))
+        let maxDur = completedSegments.map(\.duration).max()
+        return Int(ceil(maxDur ?? configuration.segmentTargetDuration))
     }
 
     private func formatDuration(_ duration: TimeInterval) -> String {
-        let formatted = String(format: "%.5f", duration)
-        var result = formatted
+        var result = String(format: "%.5f", duration)
         while result.hasSuffix("0"), !result.hasSuffix(".0") {
             result = String(result.dropLast())
         }
@@ -346,19 +392,8 @@ public actor LLHLSManager {
     }
 
     private func formatISO8601(_ date: Date) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [
-            .withInternetDateTime,
-            .withFractionalSeconds
-        ]
-        return formatter.string(from: date)
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return fmt.string(from: date)
     }
-}
-
-// MARK: - LLHLSConfiguration + Version
-
-extension LLHLSConfiguration {
-
-    /// HLS version for LL-HLS playlists (always 7+).
-    var version: Int { 7 }
 }

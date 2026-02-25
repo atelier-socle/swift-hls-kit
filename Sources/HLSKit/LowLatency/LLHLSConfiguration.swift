@@ -56,6 +56,12 @@ public struct LLHLSConfiguration: Sendable, Equatable {
     /// Whether to include `EXT-X-PROGRAM-DATE-TIME` tags.
     public var includeProgramDateTime: Bool
 
+    /// Server control configuration.
+    ///
+    /// If `nil`, a default ``ServerControlConfig/standard(targetDuration:partTargetDuration:)``
+    /// configuration is used at render time.
+    public var serverControl: ServerControlConfig?
+
     /// Creates a LL-HLS configuration.
     ///
     /// - Parameters:
@@ -66,6 +72,7 @@ public struct LLHLSConfiguration: Sendable, Equatable {
     ///   - partialURITemplate: URI template. Default `"seg{segment}.{part}.{ext}"`.
     ///   - fileExtension: File extension. Default `"mp4"`.
     ///   - includeProgramDateTime: Include PROGRAM-DATE-TIME. Default `false`.
+    ///   - serverControl: Server control configuration. Default `nil`.
     public init(
         partTargetDuration: TimeInterval = 0.33334,
         maxPartialsPerSegment: Int = 6,
@@ -73,7 +80,8 @@ public struct LLHLSConfiguration: Sendable, Equatable {
         retainedPartialSegments: Int = 3,
         partialURITemplate: String = "seg{segment}.{part}.{ext}",
         fileExtension: String = "mp4",
-        includeProgramDateTime: Bool = false
+        includeProgramDateTime: Bool = false,
+        serverControl: ServerControlConfig? = nil
     ) {
         self.partTargetDuration = partTargetDuration
         self.maxPartialsPerSegment = maxPartialsPerSegment
@@ -82,6 +90,7 @@ public struct LLHLSConfiguration: Sendable, Equatable {
         self.partialURITemplate = partialURITemplate
         self.fileExtension = fileExtension
         self.includeProgramDateTime = includeProgramDateTime
+        self.serverControl = serverControl
     }
 
     // MARK: - URI Resolution
@@ -112,30 +121,50 @@ public struct LLHLSConfiguration: Sendable, Equatable {
     /// Ultra-low-latency preset: 0.2 s parts, 1 s segments.
     ///
     /// Suitable for gaming, auctions, and interactive scenarios.
+    /// Includes server control with delta updates.
     public static let ultraLowLatency = LLHLSConfiguration(
         partTargetDuration: 0.2,
         maxPartialsPerSegment: 5,
         segmentTargetDuration: 1.0,
-        retainedPartialSegments: 4
+        retainedPartialSegments: 4,
+        serverControl: .withDeltaUpdates(
+            targetDuration: 1.0, partTargetDuration: 0.2
+        )
     )
 
     /// Low-latency preset: 0.33 s parts, 2 s segments.
     ///
     /// Suitable for sports and live news.
+    /// Includes server control with delta updates.
     public static let lowLatency = LLHLSConfiguration(
         partTargetDuration: 0.33334,
         maxPartialsPerSegment: 6,
         segmentTargetDuration: 2.0,
-        retainedPartialSegments: 3
+        retainedPartialSegments: 3,
+        serverControl: .withDeltaUpdates(
+            targetDuration: 2.0, partTargetDuration: 0.33334
+        )
     )
 
     /// Balanced preset: 0.5 s parts, 4 s segments.
     ///
     /// Suitable for general-purpose live streaming.
+    /// Includes standard server control (no delta updates).
     public static let balanced = LLHLSConfiguration(
         partTargetDuration: 0.5,
         maxPartialsPerSegment: 8,
         segmentTargetDuration: 4.0,
-        retainedPartialSegments: 3
+        retainedPartialSegments: 3,
+        serverControl: .standard(
+            targetDuration: 4.0, partTargetDuration: 0.5
+        )
     )
+}
+
+// MARK: - Version
+
+extension LLHLSConfiguration {
+
+    /// HLS version for LL-HLS playlists (always 7+).
+    var version: Int { 7 }
 }

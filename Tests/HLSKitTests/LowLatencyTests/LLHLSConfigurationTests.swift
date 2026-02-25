@@ -82,6 +82,45 @@ struct LLHLSConfigurationTests {
         #expect(uri == "part-10-2.m4s")
     }
 
+    // MARK: - Server Control
+
+    @Test("ultraLowLatency has delta-enabled server control")
+    func ultraLowLatencyServerControl() {
+        let sc = LLHLSConfiguration.ultraLowLatency.serverControl
+        #expect(sc != nil)
+        #expect(sc?.canSkipUntil != nil)
+    }
+
+    @Test("lowLatency has delta-enabled server control")
+    func lowLatencyServerControl() {
+        let sc = LLHLSConfiguration.lowLatency.serverControl
+        #expect(sc != nil)
+        #expect(sc?.canSkipUntil != nil)
+    }
+
+    @Test("balanced has standard server control (no delta)")
+    func balancedServerControl() {
+        let sc = LLHLSConfiguration.balanced.serverControl
+        #expect(sc != nil)
+        #expect(sc?.canSkipUntil == nil)
+    }
+
+    @Test("Custom config with nil serverControl")
+    func customServerControlNil() {
+        let config = LLHLSConfiguration()
+        #expect(config.serverControl == nil)
+    }
+
+    @Test("Custom config with explicit serverControl")
+    func customServerControlExplicit() {
+        let config = LLHLSConfiguration(
+            serverControl: .withDeltaUpdates(
+                targetDuration: 2.0, partTargetDuration: 0.33
+            )
+        )
+        #expect(config.serverControl?.canSkipUntil != nil)
+    }
+
     // MARK: - Equatable
 
     @Test("Presets are equatable")
