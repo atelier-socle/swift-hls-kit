@@ -50,6 +50,14 @@ struct ManagedTranscoderShowcase {
 
         let (stream, continuation) = AsyncStream.makeStream(of: Double.self)
 
+        let collector = Task<[Double], Never> {
+            var collected: [Double] = []
+            for await v in stream {
+                collected.append(v)
+            }
+            return collected
+        }
+
         let sut = ManagedTestHelper.makeSUT()
         _ = try await sut.transcode(
             input: input, outputDirectory: outputDir,
@@ -58,10 +66,7 @@ struct ManagedTranscoderShowcase {
         )
         continuation.finish()
 
-        var values: [Double] = []
-        for await v in stream {
-            values.append(v)
-        }
+        let values = await collector.value
 
         #expect(!values.isEmpty)
         #expect(values.contains(where: { $0 >= 0.05 }))
