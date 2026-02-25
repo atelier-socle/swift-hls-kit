@@ -44,6 +44,25 @@ struct LLHLSErrorTests {
         #expect(error.description.contains("progress"))
     }
 
+    @Test("requestTimeout description with partIndex")
+    func requestTimeoutWithPart() {
+        let error = LLHLSError.requestTimeout(
+            mediaSequence: 47, partIndex: 3, timeout: 6.0
+        )
+        #expect(error.description.contains("47"))
+        #expect(error.description.contains("6.0"))
+        #expect(error.description.contains("timed out"))
+    }
+
+    @Test("requestTimeout description without partIndex")
+    func requestTimeoutWithoutPart() {
+        let error = LLHLSError.requestTimeout(
+            mediaSequence: 10, partIndex: nil, timeout: 3.0
+        )
+        #expect(error.description.contains("10"))
+        #expect(error.description.contains("3.0"))
+    }
+
     @Test("Equatable: same cases are equal")
     func equatable() {
         #expect(

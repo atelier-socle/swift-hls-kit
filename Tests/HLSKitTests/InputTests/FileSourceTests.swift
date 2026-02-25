@@ -112,3 +112,150 @@ struct FileSourceActorTests {
         }
     }
 }
+
+#if canImport(AVFoundation)
+    @Suite(
+        "FileSource Integration",
+        .timeLimit(.minutes(1))
+    )
+    struct FileSourceIntegrationTests {
+
+        private func makeTempDir() throws -> URL {
+            let dir = FileManager.default.temporaryDirectory
+                .appendingPathComponent(
+                    "filesource-\(UUID().uuidString)"
+                )
+            try FileManager.default.createDirectory(
+                at: dir,
+                withIntermediateDirectories: true
+            )
+            return dir
+        }
+
+        @Test("FileSource: init with video MP4 parses tracks")
+        func initWithVideo() async throws {
+            let dir = try makeTempDir()
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let url = dir.appendingPathComponent("test.mp4")
+            try await MediaFixtureGenerator.createVideoFixture(
+                at: url
+            )
+
+            let source = try FileSource(url: url)
+            let mediaType = await source.mediaType
+            #expect(
+                mediaType == .audioVideo || mediaType == .video
+            )
+            let desc = await source.formatDescription
+            #expect(desc.videoFormat != nil)
+        }
+
+        @Test("FileSource: init with audio M4A parses tracks")
+        func initWithAudio() async throws {
+            let dir = try makeTempDir()
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let url = dir.appendingPathComponent("test.m4a")
+            try await MediaFixtureGenerator.createAudioFixture(
+                at: url
+            )
+
+            let source = try FileSource(url: url)
+            let mediaType = await source.mediaType
+            #expect(mediaType == .audio)
+            let desc = await source.formatDescription
+            #expect(desc.audioFormat != nil)
+        }
+
+        @Test("FileSource: nextSampleBuffer reads samples")
+        func nextSampleBuffer() async throws {
+            let dir = try makeTempDir()
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let url = dir.appendingPathComponent("test.mp4")
+            try await MediaFixtureGenerator.createVideoFixture(
+                at: url
+            )
+
+            let source = try FileSource(url: url)
+            let buffer = try await source.nextSampleBuffer()
+            let firstBuffer = try #require(buffer)
+            #expect(!firstBuffer.data.isEmpty)
+            #expect(firstBuffer.isKeyframe)
+        }
+
+        @Test("FileSource: reads all samples until nil")
+        func readsAllSamples() async throws {
+            let dir = try makeTempDir()
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let url = dir.appendingPathComponent("test.mp4")
+            try await MediaFixtureGenerator.createVideoFixture(
+                at: url, duration: 0.5
+            )
+
+            let source = try FileSource(url: url)
+            var count = 0
+            while try await source.nextSampleBuffer() != nil {
+                count += 1
+            }
+            #expect(count > 0)
+            let finished = await source.isFinished
+            #expect(finished)
+        }
+
+        @Test("FileSource: reset allows re-reading")
+        func resetReReads() async throws {
+            let dir = try makeTempDir()
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let url = dir.appendingPathComponent("test.mp4")
+            try await MediaFixtureGenerator.createVideoFixture(
+                at: url, duration: 0.5
+            )
+
+            let source = try FileSource(url: url)
+            // Read first sample.
+            _ = try await source.nextSampleBuffer()
+            // Reset.
+            await source.reset()
+            let finished = await source.isFinished
+            #expect(!finished)
+            // Read again.
+            let buffer = try await source.nextSampleBuffer()
+            #expect(buffer != nil)
+        }
+
+        @Test("FileSource: audio format has correct codec")
+        func audioFormatCodec() async throws {
+            let dir = try makeTempDir()
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let url = dir.appendingPathComponent("test.m4a")
+            try await MediaFixtureGenerator.createAudioFixture(
+                at: url
+            )
+
+            let source = try FileSource(url: url)
+            let desc = await source.formatDescription
+            let audio = try #require(desc.audioFormat)
+            #expect(audio.codec == .aac)
+        }
+
+        @Test("FileSource: video buffer has formatInfo")
+        func videoBufferFormatInfo() async throws {
+            let dir = try makeTempDir()
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let url = dir.appendingPathComponent("test.mp4")
+            try await MediaFixtureGenerator.createVideoFixture(
+                at: url
+            )
+
+            let source = try FileSource(url: url)
+            let buffer = try await source.nextSampleBuffer()
+            let first = try #require(buffer)
+            if case .video(let codec, let width, let height) =
+                first.formatInfo
+            {
+                #expect(codec == .h264)
+                #expect(width > 0)
+                #expect(height > 0)
+            }
+        }
+    }
+#endif

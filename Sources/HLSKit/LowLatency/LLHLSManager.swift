@@ -20,6 +20,7 @@ public actor LLHLSManager {
 
     private let partialManager: PartialSegmentManager
     private let deltaGenerator: DeltaUpdateGenerator?
+    private var blockingHandler: BlockingPlaylistHandler?
 
     // MARK: - Segment Tracking
 
@@ -74,15 +75,6 @@ public actor LLHLSManager {
     // MARK: - API
 
     /// Add a partial segment to the current segment being built.
-    ///
-    /// - Parameters:
-    ///   - duration: Duration in seconds.
-    ///   - uri: URI for the partial. Auto-generated from template
-    ///     if `nil`.
-    ///   - isIndependent: Whether it starts with an IDR frame.
-    ///   - isGap: Whether this is a GAP partial.
-    ///   - byteRange: Optional byte range.
-    /// - Returns: The created partial segment.
     /// - Throws: ``LLHLSError`` on constraint violations.
     @discardableResult
     public func addPartial(
@@ -110,20 +102,14 @@ public actor LLHLSManager {
             eventContinuation.yield(.preloadHintUpdated(hint))
         }
 
+        await blockingHandler?.notify(
+            segmentMSN: partial.segmentIndex,
+            partialIndex: partial.partialIndex
+        )
         return partial
     }
 
-    /// Complete the current segment.
-    ///
-    /// All pending partials become associated with the completed
-    /// segment. A new segment begins.
-    ///
-    /// - Parameters:
-    ///   - duration: Total segment duration in seconds.
-    ///   - uri: URI (filename) for the completed segment.
-    ///   - hasDiscontinuity: Whether to insert a discontinuity.
-    ///   - programDateTime: Optional wall-clock time.
-    /// - Returns: The completed ``LiveSegment``.
+    /// Complete the current segment and start a new one.
     @discardableResult
     public func completeSegment(
         duration: TimeInterval,
@@ -161,7 +147,9 @@ public actor LLHLSManager {
         eventContinuation.yield(
             .segmentCompleted(segment, partials: partials)
         )
-
+        await blockingHandler?.notify(
+            segmentMSN: index, partialIndex: nil
+        )
         return segment
     }
 
@@ -233,17 +221,21 @@ public actor LLHLSManager {
     public func endStream() async {
         hasEnded = true
         await partialManager.end()
+        await blockingHandler?.notifyStreamEnded()
         eventContinuation.yield(.streamEnded)
         eventContinuation.finish()
     }
 
     /// Update playlist-level metadata.
-    ///
-    /// - Parameter metadata: The metadata to apply.
-    public func updateMetadata(
-        _ metadata: LivePlaylistMetadata
-    ) {
+    public func updateMetadata(_ metadata: LivePlaylistMetadata) {
         self.metadata = metadata
+    }
+
+    /// Attach a blocking playlist handler for automatic notifications.
+    public func attachBlockingHandler(
+        _ handler: BlockingPlaylistHandler
+    ) {
+        self.blockingHandler = handler
     }
 
     // MARK: - Observable State

@@ -35,6 +35,12 @@ public enum LLHLSError: Error, Sendable, Equatable,
     /// No segment is currently in progress; cannot complete.
     case segmentNotInProgress
 
+    /// A blocking playlist request timed out waiting for the
+    /// requested segment/partial to become available.
+    case requestTimeout(
+        mediaSequence: Int, partIndex: Int?, timeout: TimeInterval
+    )
+
     public var description: String {
         switch self {
         case .streamAlreadyEnded:
@@ -48,6 +54,9 @@ public enum LLHLSError: Error, Sendable, Equatable,
             "Invalid LL-HLS configuration: \(reason)"
         case .segmentNotInProgress:
             "No segment is currently in progress"
+        case .requestTimeout(let msn, let part, let timeout):
+            "Blocking request timed out after \(timeout)s "
+                + "(msn=\(msn), part=\(part as Int?))"
         }
     }
 }
