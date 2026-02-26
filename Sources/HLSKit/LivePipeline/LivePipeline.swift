@@ -12,15 +12,25 @@ import Foundation
 /// The pipeline manages its own state machine and emits events for
 /// monitoring. All operations are thread-safe via actor isolation.
 ///
-/// Usage:
+/// ## Basic usage (configuration only)
 /// ```swift
 /// let pipeline = LivePipeline()
 /// try await pipeline.start(configuration: config)
-///
-/// // Pipeline runs... segments are produced and pushed
-///
+/// await pipeline.processSegment(data: segData, duration: 6.0, filename: "seg0.m4s")
 /// let summary = try await pipeline.stop()
-/// print("Streamed for \(summary.duration)s")
+/// ```
+///
+/// ## Component-wired usage
+/// ```swift
+/// let pipeline = LivePipeline()
+/// let components = LivePipelineComponents(
+///     input: .init(source: micSource),
+///     encoding: .init(encoder: aacEncoder),
+///     segmentation: .init(segmenter: audioSegmenter),
+///     playlist: .init(manager: slidingWindow),
+///     push: .init(destinations: [httpPusher])
+/// )
+/// try await pipeline.start(configuration: config, components: components)
 /// ```
 public actor LivePipeline {
 
@@ -41,10 +51,14 @@ public actor LivePipeline {
     /// Current active destination identifiers.
     public private(set) var activeDestinations: [String] = []
 
+    // MARK: - Internal (accessed by LivePipelineOrchestration extension)
+
+    let continuation: AsyncStream<LivePipelineEvent>.Continuation
+    var configuration: LivePipelineConfiguration?
+    var components: LivePipelineComponents?
+
     // MARK: - Private
 
-    private let continuation: AsyncStream<LivePipelineEvent>.Continuation
-    private var configuration: LivePipelineConfiguration?
     private var startDate: Date?
     private var pendingDiscontinuity: Bool = false
     private var discontinuityCount: Int = 0
@@ -85,20 +99,37 @@ public actor LivePipeline {
             throw LivePipelineError.invalidConfiguration(error)
         }
 
-        transitionTo(.starting)
-        self.configuration = configuration
-        self.segmentsProduced = 0
-        self.totalBytes = 0
-        self.pendingDiscontinuity = false
-        self.discontinuityCount = 0
-        self.totalSegmentDuration = 0
-        self.lastSegmentDuration = 0
-        self.lastSegmentBytes = 0
-        self.recordedSegmentCount = 0
+        performStart(configuration: configuration)
+    }
 
-        let now = Date()
-        self.startDate = now
-        transitionTo(.running(since: now))
+    /// Starts the pipeline with configuration and pre-built components.
+    ///
+    /// Validates configuration, checks component compatibility, then starts.
+    /// Emits ``LivePipelineEvent/componentWarning(_:)`` for mismatches.
+    ///
+    /// - Parameters:
+    ///   - configuration: Pipeline configuration to use.
+    ///   - components: Pre-built component groups for DI.
+    /// - Throws: ``LivePipelineError/invalidConfiguration(_:)`` if validation fails.
+    /// - Throws: ``LivePipelineError/alreadyRunning`` if the pipeline is not idle.
+    public func start(
+        configuration: LivePipelineConfiguration,
+        components: LivePipelineComponents
+    ) throws {
+        guard state == .idle else {
+            throw LivePipelineError.alreadyRunning
+        }
+
+        if let error = configuration.validate() {
+            throw LivePipelineError.invalidConfiguration(error)
+        }
+
+        self.components = components
+        validateComponentCompatibility(
+            configuration: configuration,
+            components: components
+        )
+        performStart(configuration: configuration)
     }
 
     /// Stops the pipeline gracefully.
@@ -131,6 +162,7 @@ public actor LivePipeline {
 
         // Reset to allow reuse
         self.configuration = nil
+        self.components = nil
         self.startDate = nil
         self.state = .idle
 
@@ -230,7 +262,8 @@ public actor LivePipeline {
         stats.recordingActive = configuration?.enableRecording ?? false
         stats.recordedSegments = recordedSegmentCount
         if segmentsProduced > 0 {
-            stats.averageSegmentDuration = totalSegmentDuration / Double(segmentsProduced)
+            stats.averageSegmentDuration =
+                totalSegmentDuration / Double(segmentsProduced)
         }
         if uptime > 0 {
             stats.estimatedBitrate = Int(Double(totalBytes * 8) / uptime)
@@ -239,6 +272,50 @@ public actor LivePipeline {
     }
 
     // MARK: - Private
+
+    private func performStart(configuration: LivePipelineConfiguration) {
+        transitionTo(.starting)
+        self.configuration = configuration
+        self.segmentsProduced = 0
+        self.totalBytes = 0
+        self.pendingDiscontinuity = false
+        self.discontinuityCount = 0
+        self.totalSegmentDuration = 0
+        self.lastSegmentDuration = 0
+        self.lastSegmentBytes = 0
+        self.recordedSegmentCount = 0
+
+        let now = Date()
+        self.startDate = now
+        transitionTo(.running(since: now))
+    }
+
+    private func validateComponentCompatibility(
+        configuration: LivePipelineConfiguration,
+        components: LivePipelineComponents
+    ) {
+        if configuration.enableRecording && components.recording == nil {
+            continuation.yield(
+                .componentWarning(
+                    "Recording enabled but no RecordingComponents provided"
+                )
+            )
+        }
+        if configuration.lowLatency != nil && components.lowLatency == nil {
+            continuation.yield(
+                .componentWarning(
+                    "Low-latency enabled but no LowLatencyComponents provided"
+                )
+            )
+        }
+        if !configuration.destinations.isEmpty && components.push == nil {
+            continuation.yield(
+                .componentWarning(
+                    "Push destinations configured but no PushComponents provided"
+                )
+            )
+        }
+    }
 
     private func transitionTo(_ newState: LivePipelineState) {
         state = newState

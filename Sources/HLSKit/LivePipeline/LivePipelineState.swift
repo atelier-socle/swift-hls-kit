@@ -112,6 +112,8 @@ public enum LivePipelineError: Error, Sendable, Equatable {
     case pushFailed(String)
     /// Source stream error.
     case sourceError(String)
+    /// A required component group is not configured.
+    case componentNotConfigured(String)
 }
 
 // MARK: - LivePipelineEvent
@@ -126,14 +128,30 @@ public enum LivePipelineEvent: Sendable {
     case pushCompleted(destination: String, segmentIndex: Int, latency: TimeInterval)
     /// A push to a destination failed.
     case pushFailed(destination: String, error: String)
+    /// A push to a destination succeeded.
+    case pushSucceeded(destination: String, bytesSent: Int)
     /// Metadata was inserted into the stream.
     case metadataInserted(type: String)
+    /// Timed metadata was injected via components.
+    case metadataInjected
+    /// An HLS Interstitial was scheduled.
+    case interstitialScheduled(String)
+    /// A SCTE-35 splice point was inserted.
+    case scte35Inserted
     /// A discontinuity marker was inserted.
     case discontinuityInserted
     /// A recording segment was saved to disk.
     case recordingSegmentSaved(filename: String)
+    /// Recording was finalized into a VOD playlist.
+    case recordingFinalized
+    /// Silence was detected in the audio stream.
+    case silenceDetected(duration: TimeInterval)
+    /// Loudness measurement update.
+    case loudnessUpdate(lufs: Double)
     /// A non-fatal warning occurred.
     case warning(String)
+    /// A component configuration warning (non-fatal).
+    case componentWarning(String)
 }
 
 // MARK: - LivePipelineStateTransition

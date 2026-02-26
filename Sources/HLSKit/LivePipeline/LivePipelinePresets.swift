@@ -29,6 +29,7 @@ extension LivePipelineConfiguration {
         config.containerFormat = .mpegts
         config.playlistType = .slidingWindow(windowSize: 5)
         config.targetLoudness = -16.0
+        config.audioProcessing = .podcast
         config.enableProgramDateTime = true
         config.programDateTimeInterval = 6.0
         return config
@@ -85,6 +86,7 @@ extension LivePipelineConfiguration {
         config.playlistType = .event
         config.enableRecording = true
         config.recordingDirectory = "recordings"
+        config.audioProcessing = .music
         return config
     }
 
@@ -269,6 +271,7 @@ extension LivePipelineConfiguration {
         config.containerFormat = .fmp4
         config.playlistType = .slidingWindow(windowSize: 6)
         config.targetLoudness = -23.0
+        config.audioProcessing = .broadcast
         config.enableDVR = true
         config.dvrWindowDuration = 7200
         config.enableRecording = true

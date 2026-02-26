@@ -96,6 +96,9 @@ public struct LivePipelineConfiguration: Sendable, Equatable {
     /// Target loudness in LUFS. nil disables normalization. Default: nil.
     public var targetLoudness: Float?
 
+    /// Audio processing settings for metering, normalization, and silence detection.
+    public var audioProcessing: AudioProcessingSettings?
+
     // MARK: - Init
 
     /// Creates a new configuration with default values.
@@ -120,6 +123,7 @@ public struct LivePipelineConfiguration: Sendable, Equatable {
         self.enableProgramDateTime = true
         self.programDateTimeInterval = 6.0
         self.targetLoudness = nil
+        self.audioProcessing = nil
     }
 
     // MARK: - Validation
@@ -258,4 +262,92 @@ public enum PushDestinationConfig: Sendable, Equatable {
     case http(url: String, headers: [String: String] = [:])
     /// Local filesystem directory.
     case local(directory: String)
+}
+
+// MARK: - AudioProcessingSettings
+
+/// Audio processing settings for the live pipeline.
+///
+/// Configures loudness normalization, silence detection, and metering.
+/// Use presets for common scenarios: ``podcast``, ``broadcast``, ``music``.
+public struct AudioProcessingSettings: Sendable, Equatable {
+
+    /// Target loudness in LUFS. nil disables normalization.
+    public var targetLoudness: Double?
+
+    /// Enable silence detection.
+    public var silenceDetection: Bool
+
+    /// Silence threshold in dBFS.
+    public var silenceThreshold: Double
+
+    /// Minimum silence duration to trigger detection.
+    public var silenceMinDuration: TimeInterval
+
+    /// Enable peak/RMS level metering.
+    public var levelMetering: Bool
+
+    /// Enable integrated loudness metering.
+    public var loudnessMetering: Bool
+
+    /// Creates audio processing settings.
+    ///
+    /// - Parameters:
+    ///   - targetLoudness: Target loudness in LUFS. nil disables normalization.
+    ///   - silenceDetection: Enable silence detection. Default: false.
+    ///   - silenceThreshold: Silence threshold in dBFS. Default: -50.0.
+    ///   - silenceMinDuration: Minimum silence duration. Default: 3.0.
+    ///   - levelMetering: Enable level metering. Default: false.
+    ///   - loudnessMetering: Enable loudness metering. Default: false.
+    public init(
+        targetLoudness: Double? = nil,
+        silenceDetection: Bool = false,
+        silenceThreshold: Double = -50.0,
+        silenceMinDuration: TimeInterval = 3.0,
+        levelMetering: Bool = false,
+        loudnessMetering: Bool = false
+    ) {
+        self.targetLoudness = targetLoudness
+        self.silenceDetection = silenceDetection
+        self.silenceThreshold = silenceThreshold
+        self.silenceMinDuration = silenceMinDuration
+        self.levelMetering = levelMetering
+        self.loudnessMetering = loudnessMetering
+    }
+
+    /// Podcast: -16 LUFS, silence detection, loudness metering.
+    public static var podcast: Self {
+        Self(
+            targetLoudness: -16.0,
+            silenceDetection: true,
+            silenceThreshold: -50.0,
+            silenceMinDuration: 3.0,
+            levelMetering: false,
+            loudnessMetering: true
+        )
+    }
+
+    /// Broadcast: -23 LUFS (EBU R 128), all meters active.
+    public static var broadcast: Self {
+        Self(
+            targetLoudness: -23.0,
+            silenceDetection: true,
+            silenceThreshold: -50.0,
+            silenceMinDuration: 5.0,
+            levelMetering: true,
+            loudnessMetering: true
+        )
+    }
+
+    /// DJ/music: level metering only, no normalization.
+    public static var music: Self {
+        Self(
+            targetLoudness: nil,
+            silenceDetection: false,
+            silenceThreshold: -50.0,
+            silenceMinDuration: 3.0,
+            levelMetering: true,
+            loudnessMetering: false
+        )
+    }
 }
