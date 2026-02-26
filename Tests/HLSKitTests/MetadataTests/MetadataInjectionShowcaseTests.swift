@@ -6,8 +6,8 @@ import Testing
 
 @testable import HLSKit
 
-@Suite("Phase 13 Showcase", .timeLimit(.minutes(1)))
-struct Phase13ShowcaseTests {
+@Suite("Metadata Injection Showcase", .timeLimit(.minutes(1)))
+struct MetadataInjectionShowcaseTests {
 
     private let refDate = Date(timeIntervalSince1970: 1_740_000_000)
 

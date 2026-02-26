@@ -6,8 +6,8 @@ import Testing
 
 @testable import HLSKit
 
-@Suite("Phase11Showcase", .timeLimit(.minutes(1)))
-struct Phase11ShowcaseTests {
+@Suite("Low-Latency Extended Showcase", .timeLimit(.minutes(1)))
+struct LowLatencyExtendedShowcaseTests {
 
     // MARK: - Showcase: Ultra-low-latency esports
 

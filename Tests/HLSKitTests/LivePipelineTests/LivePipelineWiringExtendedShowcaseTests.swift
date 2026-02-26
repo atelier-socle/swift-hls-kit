@@ -6,8 +6,8 @@ import Testing
 
 @testable import HLSKit
 
-@Suite("LivePipeline Wiring Showcase 2", .timeLimit(.minutes(1)))
-struct LivePipelineWiringShowcase2Tests {
+@Suite("LivePipeline Wiring Extended Showcase", .timeLimit(.minutes(1)))
+struct LivePipelineWiringExtendedShowcaseTests {
 
     // MARK: - Helpers
 

@@ -7,8 +7,8 @@ import os
 
 @testable import HLSKit
 
-@Suite("Phase 12 Showcase", .timeLimit(.minutes(1)))
-struct Phase12ShowcaseTests {
+@Suite("Push Delivery Showcase", .timeLimit(.minutes(1)))
+struct PushDeliveryShowcaseTests {
 
     // MARK: - Helpers
 
