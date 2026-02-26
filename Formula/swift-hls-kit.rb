@@ -22,7 +22,7 @@
 class SwiftHlsKit < Formula
   desc "CLI tool for HLS manifest parsing, segmentation, transcoding, and encryption"
   homepage "https://github.com/atelier-socle/swift-hls-kit"
-  url "https://github.com/atelier-socle/swift-hls-kit/archive/refs/tags/0.2.0.tar.gz"
+  url "https://github.com/atelier-socle/swift-hls-kit/archive/refs/tags/0.3.0.tar.gz"
   sha256 "UPDATE_SHA256_AFTER_RELEASE"
   license "Apache-2.0"
 
