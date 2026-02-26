@@ -216,7 +216,7 @@ extension OutputFormatter {
         return "{\n  \(entries.joined(separator: ",\n  "))\n}"
     }
 
-    private func formatJSONObject(
+    func formatJSONObject(
         _ pairs: [(String, String)]
     ) -> String {
         let entries = pairs.map { key, value in
