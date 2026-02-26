@@ -99,6 +99,59 @@ public struct LivePipelineConfiguration: Sendable, Equatable {
     /// Audio processing settings for metering, normalization, and silence detection.
     public var audioProcessing: AudioProcessingSettings?
 
+    // MARK: - Spatial Audio (Phase 19)
+
+    /// Spatial audio configuration (Atmos, AC-3, E-AC-3, multichannel).
+    /// Nil for standard stereo.
+    public var spatialAudio: SpatialAudioConfig?
+
+    /// Hi-Res audio configuration (96/192kHz, 24/32-bit, ALAC/FLAC).
+    /// Nil for standard quality.
+    public var hiResAudio: HiResAudioConfig?
+
+    // MARK: - HDR & Video (Phase 20)
+
+    /// HDR video configuration (HDR10, HDR10+, Dolby Vision, HLG).
+    /// Nil for SDR content.
+    public var hdr: HDRConfig?
+
+    /// Resolution preset for video output.
+    /// Nil uses the default from the quality preset.
+    public var resolution: ResolutionPreset?
+
+    // MARK: - DRM (Phase 21)
+
+    /// DRM pipeline configuration (FairPlay, key rotation, CENC).
+    /// Nil for unencrypted streams.
+    public var drm: LiveDRMPipelineConfig?
+
+    // MARK: - Accessibility (Phase 22)
+
+    /// Closed caption configuration.
+    /// Nil for no captions.
+    public var closedCaptions: ClosedCaptionConfig?
+
+    /// Audio description tracks.
+    /// Nil for no audio descriptions.
+    public var audioDescriptions: [AudioDescriptionConfig]?
+
+    /// Whether to enable subtitle support (WebVTT).
+    /// The actual subtitle content is added at runtime via LiveWebVTTWriter.
+    public var subtitlesEnabled: Bool
+
+    // MARK: - Resilience (Phase 22)
+
+    /// Redundant stream configuration for failover.
+    /// Nil for single-origin streaming.
+    public var redundancy: RedundantStreamConfig?
+
+    /// Content steering configuration for CDN switching.
+    /// Nil for no steering.
+    public var contentSteering: ContentSteeringConfig?
+
+    /// Session data entries for master playlist metadata.
+    public var sessionData: SessionDataConfig?
+
     // MARK: - Init
 
     /// Creates a new configuration with default values.
@@ -124,6 +177,17 @@ public struct LivePipelineConfiguration: Sendable, Equatable {
         self.programDateTimeInterval = 6.0
         self.targetLoudness = nil
         self.audioProcessing = nil
+        self.spatialAudio = nil
+        self.hiResAudio = nil
+        self.hdr = nil
+        self.resolution = nil
+        self.drm = nil
+        self.closedCaptions = nil
+        self.audioDescriptions = nil
+        self.subtitlesEnabled = false
+        self.redundancy = nil
+        self.contentSteering = nil
+        self.sessionData = nil
     }
 
     // MARK: - Validation

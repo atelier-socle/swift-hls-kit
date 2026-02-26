@@ -62,6 +62,21 @@ public struct LivePipelineComponents: Sendable {
     /// Audio processing components (Phase 15).
     public var audio: AudioComponents?
 
+    /// Spatial audio components (Phase 19). Nil if not configured.
+    public var spatialAudio: SpatialAudioComponents?
+
+    /// HDR video components (Phase 20). Nil if not configured.
+    public var hdr: HDRComponents?
+
+    /// DRM components (Phase 21). Nil if not configured.
+    public var drm: DRMComponents?
+
+    /// Accessibility components (Phase 22). Nil if not configured.
+    public var accessibility: AccessibilityComponents?
+
+    /// Resilience components (Phase 22). Nil if not configured.
+    public var resilience: ResilienceComponents?
+
     /// Creates a components container with the given groups.
     ///
     /// All parameters default to nil — configure only what your pipeline needs.
@@ -74,7 +89,12 @@ public struct LivePipelineComponents: Sendable {
         push: PushComponents? = nil,
         metadata: MetadataComponents? = nil,
         recording: RecordingComponents? = nil,
-        audio: AudioComponents? = nil
+        audio: AudioComponents? = nil,
+        spatialAudio: SpatialAudioComponents? = nil,
+        hdr: HDRComponents? = nil,
+        drm: DRMComponents? = nil,
+        accessibility: AccessibilityComponents? = nil,
+        resilience: ResilienceComponents? = nil
     ) {
         self.input = input
         self.encoding = encoding
@@ -85,6 +105,11 @@ public struct LivePipelineComponents: Sendable {
         self.metadata = metadata
         self.recording = recording
         self.audio = audio
+        self.spatialAudio = spatialAudio
+        self.hdr = hdr
+        self.drm = drm
+        self.accessibility = accessibility
+        self.resilience = resilience
     }
 }
 
@@ -347,5 +372,121 @@ public struct AudioComponents: Sendable {
         self.formatConverter = formatConverter
         self.sampleRateConverter = sampleRateConverter
         self.channelMixer = channelMixer
+    }
+}
+
+// MARK: - SpatialAudioComponents (Phase 19)
+
+/// Spatial audio encoding components.
+public struct SpatialAudioComponents: Sendable {
+
+    /// Spatial audio encoder (Atmos, AC-3, E-AC-3).
+    public var encoder: (any SpatialAudioEncoder)?
+
+    /// Spatial rendition generator.
+    public var renditionGenerator: SpatialRenditionGenerator?
+
+    /// Creates spatial audio components.
+    ///
+    /// - Parameters:
+    ///   - encoder: Optional spatial audio encoder.
+    ///   - renditionGenerator: Optional spatial rendition generator.
+    public init(
+        encoder: (any SpatialAudioEncoder)? = nil,
+        renditionGenerator: SpatialRenditionGenerator? = nil
+    ) {
+        self.encoder = encoder
+        self.renditionGenerator = renditionGenerator
+    }
+}
+
+// MARK: - HDRComponents (Phase 20)
+
+/// HDR video components.
+public struct HDRComponents: Sendable {
+
+    /// Video range mapper for HLS attributes.
+    public var rangeMapper: VideoRangeMapper?
+
+    /// HDR variant generator.
+    public var variantGenerator: HDRVariantGenerator?
+
+    /// Creates HDR components.
+    ///
+    /// - Parameters:
+    ///   - rangeMapper: Optional video range mapper.
+    ///   - variantGenerator: Optional HDR variant generator.
+    public init(
+        rangeMapper: VideoRangeMapper? = nil,
+        variantGenerator: HDRVariantGenerator? = nil
+    ) {
+        self.rangeMapper = rangeMapper
+        self.variantGenerator = variantGenerator
+    }
+}
+
+// MARK: - DRMComponents (Phase 21)
+
+/// DRM components.
+public struct DRMComponents: Sendable {
+
+    /// Session key manager for master playlist.
+    public var sessionKeyManager: SessionKeyManager?
+
+    /// Creates DRM components.
+    ///
+    /// - Parameter sessionKeyManager: Optional session key manager.
+    public init(sessionKeyManager: SessionKeyManager? = nil) {
+        self.sessionKeyManager = sessionKeyManager
+    }
+}
+
+// MARK: - AccessibilityComponents (Phase 22)
+
+/// Accessibility components for captions, subtitles, and audio descriptions.
+public struct AccessibilityComponents: Sendable {
+
+    /// Rendition generator for captions, subtitles, audio descriptions.
+    public var renditionGenerator: AccessibilityRenditionGenerator?
+
+    /// WebVTT writer segment duration. Created at runtime.
+    public var webVTTSegmentDuration: TimeInterval?
+
+    /// Creates accessibility components.
+    ///
+    /// - Parameters:
+    ///   - renditionGenerator: Optional accessibility rendition generator.
+    ///   - webVTTSegmentDuration: Optional WebVTT segment duration.
+    public init(
+        renditionGenerator: AccessibilityRenditionGenerator? = nil,
+        webVTTSegmentDuration: TimeInterval? = nil
+    ) {
+        self.renditionGenerator = renditionGenerator
+        self.webVTTSegmentDuration = webVTTSegmentDuration
+    }
+}
+
+// MARK: - ResilienceComponents (Phase 22)
+
+/// Resilience components for gap handling and failover.
+public struct ResilienceComponents: Sendable {
+
+    /// Gap handler for live playlists.
+    public var gapHandler: GapHandler?
+
+    /// Failover manager for redundant streams.
+    public var failoverManager: FailoverManager?
+
+    /// Creates resilience components.
+    ///
+    /// - Parameters:
+    ///   - gapHandler: Optional gap handler.
+    ///   - failoverManager: Optional failover manager.
+    public init(
+        gapHandler: GapHandler? = nil,
+        failoverManager: FailoverManager? = nil
+    ) {
+        self.gapHandler = gapHandler
+        self.failoverManager = failoverManager
     }
 }
