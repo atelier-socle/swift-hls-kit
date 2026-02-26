@@ -27,7 +27,8 @@ public struct HLSKitCommand: AsyncParsableCommand {
             InfoCommand.self,
             EncryptCommand.self,
             ManifestCommand.self,
-            LiveCommand.self
+            LiveCommand.self,
+            IFrameCommand.self
         ]
     )
 

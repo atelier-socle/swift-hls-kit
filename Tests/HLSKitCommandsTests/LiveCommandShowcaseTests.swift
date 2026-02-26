@@ -11,10 +11,10 @@ import Testing
 @Suite("CLI Showcase — Live Command")
 struct LiveCommandShowcaseTests {
 
-    @Test("LiveCommand — has 4 subcommands (start, stop, stats, convert-to-vod)")
+    @Test("LiveCommand — has 5 subcommands (start, stop, stats, convert-to-vod, metadata)")
     func subcommands() {
         let subs = LiveCommand.configuration.subcommands
-        #expect(subs.count == 4)
+        #expect(subs.count == 5)
     }
 
     @Test("LiveStartCommand — podcast live with default preset")

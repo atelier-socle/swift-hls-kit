@@ -399,10 +399,10 @@ struct LiveConvertToVODCommandTests {
 @Suite("LiveCommand — Integration")
 struct LiveCommandIntegrationTests {
 
-    @Test("LiveCommand has 4 subcommands")
+    @Test("LiveCommand has 5 subcommands")
     func subcommandCount() {
         let subs = LiveCommand.configuration.subcommands
-        #expect(subs.count == 4)
+        #expect(subs.count == 5)
     }
 
     @Test("HLSKitCommand includes LiveCommand")

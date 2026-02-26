@@ -22,7 +22,8 @@ struct LiveCommand: AsyncParsableCommand {
             LiveStartCommand.self,
             LiveStopCommand.self,
             LiveStatsCommand.self,
-            LiveConvertToVODCommand.self
+            LiveConvertToVODCommand.self,
+            LiveMetadataCommand.self
         ]
     )
 }
@@ -135,7 +136,7 @@ struct LiveStartCommand: AsyncParsableCommand {
             throw ExitCode(ExitCodes.validationError)
         }
 
-        var pipeline = applyOverrides(to: config)
+        let pipeline = applyOverrides(to: config)
 
         if let error = pipeline.validate() {
             printErr("Error: \(error)")
