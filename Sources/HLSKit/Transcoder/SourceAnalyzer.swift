@@ -47,7 +47,7 @@
                 )
             }
 
-            let videoTrack = tracks.first { $0.mediaType == .video }
+            let videoTrack = await firstRealVideoTrack(tracks)
             let audioTrack = tracks.first { $0.mediaType == .audio }
 
             let videoProps = try await analyzeVideo(videoTrack)
@@ -130,6 +130,32 @@
                 sampleRate: sampleRate,
                 channels: channels
             )
+        }
+
+        // MARK: - Track Filtering
+
+        /// Minimum dimension to qualify as real video.
+        private static let minVideoDimension = 240
+
+        /// Find the first real video track, excluding still images.
+        ///
+        /// Cover art tracks in M4A files are reported as video but
+        /// have small dimensions (e.g. 160x160) and non-HLS codecs
+        /// like jpeg. Filter them out by requiring minimum size.
+        private static func firstRealVideoTrack(
+            _ tracks: [AVAssetTrack]
+        ) async -> AVAssetTrack? {
+            for track in tracks where track.mediaType == .video {
+                let size =
+                    (try? await track.load(.naturalSize))
+                    ?? .zero
+                let isLargeEnough =
+                    Int(size.width) >= minVideoDimension
+                    && Int(size.height) >= minVideoDimension
+                guard isLargeEnough else { continue }
+                return track
+            }
+            return nil
         }
 
         // MARK: - Effective Preset

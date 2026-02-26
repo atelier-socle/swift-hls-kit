@@ -153,21 +153,29 @@
             let tracks = try await asset.load(.tracks)
             let duration = try await asset.load(.duration)
 
-            let videoTrack = tracks.first { $0.mediaType == .video }
+            let videoTrack =
+                job.preset.isAudioOnly
+                ? nil
+                : await firstRealVideoTrack(tracks)
             let audioTrack =
                 job.config.includeAudio
                 ? tracks.first(where: { $0.mediaType == .audio })
                 : nil
 
-            var audioFormatHint: CMFormatDescription?
-            if let audioTrack {
-                let descs = try await audioTrack.load(
-                    .formatDescriptions
-                )
-                audioFormatHint = descs.first
-            }
+            let audioFormatHint = try await audioTrack?
+                .load(.formatDescriptions).first
 
-            let reader = try AVAssetReader(asset: asset)
+            // Build composition with only audio/video to exclude
+            // text tracks that break AVAssetReader/Writer.
+            let filtered = try filteredComposition(
+                duration: duration,
+                videoTrack: videoTrack,
+                audioTrack: audioTrack
+            )
+
+            let reader = try AVAssetReader(
+                asset: filtered.asset
+            )
             let writer = try AVAssetWriter(
                 outputURL: job.output, fileType: .mp4
             )
@@ -176,10 +184,11 @@
                 reader: reader,
                 writer: writer,
                 videoReaderOutput: setupVideoReader(
-                    track: videoTrack, reader: reader
+                    track: filtered.videoTrack,
+                    reader: reader
                 ),
                 audioReaderOutput: setupAudioReader(
-                    track: audioTrack,
+                    track: filtered.audioTrack,
                     reader: reader,
                     passthrough: job.config.audioPassthrough
                 ),
@@ -190,7 +199,7 @@
                     writer: writer
                 ),
                 audioWriterInput: setupAudioWriter(
-                    track: audioTrack,
+                    track: filtered.audioTrack,
                     preset: job.preset,
                     config: job.config,
                     writer: writer,
@@ -206,6 +215,39 @@
 
             try await session.execute(pipeline)
         }
+    }
+
+    // MARK: - Track Filtering
+
+    extension AppleTranscoder {
+
+        /// Minimum dimension to qualify as real video.
+        ///
+        /// Cover art is typically 160x160 or 320x320. Any track
+        /// smaller than this is treated as a still image.
+        private static let minVideoDimension = 240
+
+        /// Find the first real video track, excluding still images.
+        ///
+        /// Cover art tracks in M4A files are reported as video but
+        /// have small dimensions (e.g. 160x160) and non-HLS codecs
+        /// like jpeg. Filter them out by requiring minimum size.
+        private func firstRealVideoTrack(
+            _ tracks: [AVAssetTrack]
+        ) async -> AVAssetTrack? {
+            for track in tracks where track.mediaType == .video {
+                let size =
+                    (try? await track.load(.naturalSize))
+                    ?? .zero
+                let isLargeEnough =
+                    Int(size.width) >= Self.minVideoDimension
+                    && Int(size.height) >= Self.minVideoDimension
+                guard isLargeEnough else { continue }
+                return track
+            }
+            return nil
+        }
+
     }
 
     // MARK: - Reader Setup
@@ -313,84 +355,6 @@
                 writer.add(input)
             }
             return input
-        }
-    }
-
-    // MARK: - Segmentation
-
-    extension AppleTranscoder {
-
-        private func segmentOutput(
-            tempURL: URL,
-            outputDirectory: URL,
-            config: TranscodingConfig
-        ) throws -> SegmentationResult? {
-            let data: Data
-            do {
-                data = try Data(contentsOf: tempURL)
-            } catch {
-                return nil
-            }
-
-            let segConfig = SegmentationConfig(
-                targetSegmentDuration: config.segmentDuration,
-                containerFormat: config.containerFormat,
-                generatePlaylist: config.generatePlaylist,
-                playlistType: config.playlistType
-            )
-
-            switch config.containerFormat {
-            case .fragmentedMP4:
-                return try? MP4Segmenter()
-                    .segmentToDirectory(
-                        data: data,
-                        outputDirectory: outputDirectory,
-                        config: segConfig
-                    )
-            case .mpegTS:
-                return try? TSSegmenter()
-                    .segmentToDirectory(
-                        data: data,
-                        outputDirectory: outputDirectory,
-                        config: segConfig
-                    )
-            }
-        }
-    }
-
-    // MARK: - Helpers
-
-    extension AppleTranscoder {
-
-        private func prepareOutputDirectory(
-            _ url: URL
-        ) throws {
-            var isDir: ObjCBool = false
-            if !FileManager.default.fileExists(
-                atPath: url.path, isDirectory: &isDir
-            ) {
-                do {
-                    try FileManager.default.createDirectory(
-                        at: url,
-                        withIntermediateDirectories: true
-                    )
-                } catch {
-                    throw TranscodingError.outputDirectoryError(
-                        error.localizedDescription
-                    )
-                }
-            } else if !isDir.boolValue {
-                throw TranscodingError.outputDirectoryError(
-                    "Path exists but is not a directory: \(url.path)"
-                )
-            }
-        }
-
-        private func fileSize(at url: URL) -> UInt64 {
-            let attrs = try? FileManager.default.attributesOfItem(
-                atPath: url.path
-            )
-            return attrs?[.size] as? UInt64 ?? 0
         }
     }
 

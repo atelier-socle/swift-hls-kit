@@ -5,7 +5,7 @@
 ///
 /// Used in the `RESOLUTION` attribute of `EXT-X-STREAM-INF` and
 /// `EXT-X-I-FRAME-STREAM-INF` tags (RFC 8216 Section 4.3.4.2).
-public struct Resolution: Sendable, Hashable, Codable {
+public struct Resolution: Sendable, Hashable {
 
     /// The horizontal pixel count.
     public let width: Int
@@ -21,6 +21,57 @@ public struct Resolution: Sendable, Hashable, Codable {
     public init(width: Int, height: Int) {
         self.width = width
         self.height = height
+    }
+}
+
+// MARK: - Codable
+
+extension Resolution: Codable {
+
+    public init(from decoder: Decoder) throws {
+        // Try string format "WxH" first
+        if let container = try? decoder.singleValueContainer(),
+            let string = try? container.decode(String.self)
+        {
+            let parts = string.split(separator: "x")
+            if parts.count == 2,
+                let w = Int(parts[0]),
+                let h = Int(parts[1])
+            {
+                self.width = w
+                self.height = h
+                return
+            }
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(
+                    codingPath: decoder.codingPath,
+                    debugDescription:
+                        "Invalid resolution string: \(string). Expected \"WxH\"."
+                )
+            )
+        }
+
+        // Fall back to object {"width": W, "height": H}
+        let container = try decoder.container(
+            keyedBy: CodingKeys.self
+        )
+        self.width = try container.decode(Int.self, forKey: .width)
+        self.height = try container.decode(
+            Int.self, forKey: .height
+        )
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(
+            keyedBy: CodingKeys.self
+        )
+        try container.encode(width, forKey: .width)
+        try container.encode(height, forKey: .height)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case width
+        case height
     }
 }
 

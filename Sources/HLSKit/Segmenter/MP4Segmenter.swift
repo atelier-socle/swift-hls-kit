@@ -105,7 +105,7 @@ extension MP4Segmenter {
 
     /// Groups the parameters needed during segment generation.
     struct SegmentContext {
-        let videoAnalysis: MP4TrackAnalysis
+        let videoAnalysis: MP4TrackAnalysis?
         let audioAnalysis: MP4TrackAnalysis?
         let config: SegmentationConfig
         let sourceData: Data
@@ -116,62 +116,31 @@ extension MP4Segmenter {
 
 extension MP4Segmenter {
 
+    /// Supported video codecs for HLS segmentation.
+    static let supportedVideoCodecs: Set<String> = [
+        "avc1", "avc3", "hvc1", "hev1", "av01"
+    ]
+
     private func performSegmentation(
         data: Data,
         config: SegmentationConfig
     ) throws(MP4Error) -> SegmentationResult {
-        // 1. Read MP4 boxes
-        let boxReader = MP4BoxReader()
-        let boxes = try boxReader.readBoxes(from: data)
-
-        // 2. Parse file info
-        let infoParser = MP4InfoParser()
-        let fileInfo = try infoParser.parseFileInfo(from: boxes)
-
-        // 3. Parse track analyses
-        let trackAnalyses = try infoParser.parseTrackAnalysis(
-            from: boxes
+        let parsed = try parseMP4(data: data)
+        let segments = calculatePrimarySegments(
+            parsed: parsed, config: config
         )
-
-        // 4. Identify video and audio tracks
-        guard
-            let video = trackAnalyses.first(where: {
-                $0.info.mediaType == .video
-            })
-        else {
-            throw .invalidMP4("No video track found")
-        }
-        let audio = trackAnalyses.first {
-            $0.info.mediaType == .audio
-        }
-
-        // 5. Calculate video segments
-        let videoSegments = video.locator.calculateSegments(
-            targetDuration: config.targetSegmentDuration
-        )
-
-        // 6. Generate init segment
-        let initWriter = InitSegmentWriter()
-        let initSegment = try initWriter.generateInitSegment(
-            fileInfo: fileInfo,
-            trackAnalyses: trackAnalyses
-        )
-
-        // 7. Generate media segments
+        let initSegment = try generateInit(parsed: parsed)
         let ctx = SegmentContext(
-            videoAnalysis: video, audioAnalysis: audio,
+            videoAnalysis: parsed.video,
+            audioAnalysis: parsed.audio,
             config: config, sourceData: data
         )
         let mediaSegments = try generateMediaSegments(
-            videoSegments: videoSegments, context: ctx
+            segments: segments, context: ctx
         )
-
-        // 8. Apply byte-range offsets if needed
         let finalSegments = applyByteRangeOffsets(
             segments: mediaSegments, config: config
         )
-
-        // 9. Generate playlist if requested
         let playlist: String?
         if config.generatePlaylist {
             playlist = buildPlaylist(
@@ -180,14 +149,84 @@ extension MP4Segmenter {
         } else {
             playlist = nil
         }
-
         return SegmentationResult(
             initSegment: initSegment,
             mediaSegments: finalSegments,
             playlist: playlist,
-            fileInfo: fileInfo,
+            fileInfo: parsed.fileInfo,
             config: config
         )
+    }
+
+    private func parseMP4(
+        data: Data
+    ) throws(MP4Error) -> ParsedMP4 {
+        let boxReader = MP4BoxReader()
+        let boxes = try boxReader.readBoxes(from: data)
+        let infoParser = MP4InfoParser()
+        let fileInfo = try infoParser.parseFileInfo(from: boxes)
+        let trackAnalyses = try infoParser.parseTrackAnalysis(
+            from: boxes
+        )
+        let video = trackAnalyses.first {
+            $0.info.mediaType == .video
+                && Self.supportedVideoCodecs.contains(
+                    $0.info.codec
+                )
+        }
+        let audio = trackAnalyses.first {
+            $0.info.mediaType == .audio
+        }
+        guard video != nil || audio != nil else {
+            throw .invalidMP4("No video or audio track found")
+        }
+        let mediaTracks = trackAnalyses.filter {
+            ($0.info.mediaType == .video
+                && Self.supportedVideoCodecs.contains(
+                    $0.info.codec
+                ))
+                || $0.info.mediaType == .audio
+        }
+        return ParsedMP4(
+            fileInfo: fileInfo, video: video,
+            audio: audio, mediaTracks: mediaTracks
+        )
+    }
+
+    private func calculatePrimarySegments(
+        parsed: ParsedMP4,
+        config: SegmentationConfig
+    ) -> [SegmentInfo] {
+        if let video = parsed.video {
+            return video.locator.calculateSegments(
+                targetDuration: config.targetSegmentDuration
+            )
+        }
+        if let audio = parsed.audio {
+            return audio.locator.calculateSegments(
+                targetDuration: config.targetSegmentDuration,
+                forceAllSync: true
+            )
+        }
+        return []
+    }
+
+    private func generateInit(
+        parsed: ParsedMP4
+    ) throws(MP4Error) -> Data {
+        let initWriter = InitSegmentWriter()
+        return try initWriter.generateInitSegment(
+            fileInfo: parsed.fileInfo,
+            trackAnalyses: parsed.mediaTracks
+        )
+    }
+
+    /// Parsed MP4 structure for segmentation.
+    struct ParsedMP4 {
+        let fileInfo: MP4FileInfo
+        let video: MP4TrackAnalysis?
+        let audio: MP4TrackAnalysis?
+        let mediaTracks: [MP4TrackAnalysis]
     }
 }
 
@@ -196,31 +235,68 @@ extension MP4Segmenter {
 extension MP4Segmenter {
 
     private func generateMediaSegments(
-        videoSegments: [SegmentInfo],
+        segments: [SegmentInfo],
         context: SegmentContext
     ) throws(MP4Error) -> [MediaSegmentOutput] {
         let writer = MediaSegmentWriter()
+
+        if let video = context.videoAnalysis {
+            return try generateVideoSegments(
+                segments: segments,
+                videoAnalysis: video,
+                writer: writer,
+                context: context
+            )
+        }
+
+        if let audio = context.audioAnalysis {
+            return try generateAudioOnlySegments(
+                segments: segments,
+                audioAnalysis: audio,
+                writer: writer,
+                context: context
+            )
+        }
+
+        return []
+    }
+
+    private func generateVideoSegments(
+        segments: [SegmentInfo],
+        videoAnalysis: MP4TrackAnalysis,
+        writer: MediaSegmentWriter,
+        context: SegmentContext
+    ) throws(MP4Error) -> [MediaSegmentOutput] {
         let useMuxed =
             context.config.includeAudio
             && context.audioAnalysis != nil
-        var segments: [MediaSegmentOutput] = []
+        var result: [MediaSegmentOutput] = []
 
-        for (index, videoSeg) in videoSegments.enumerated() {
+        for (index, seg) in segments.enumerated() {
             let seq = UInt32(index + 1)
             let segmentData: Data
             if useMuxed, let audio = context.audioAnalysis {
-                segmentData = try buildMuxedSegment(
-                    writer: writer,
-                    videoSegment: videoSeg,
-                    audioAnalysis: audio,
-                    context: context,
-                    sequenceNumber: seq
+                let audioSeg =
+                    audio.locator.alignedAudioSegment(
+                        for: seg,
+                        videoTimescale: videoAnalysis.info
+                            .timescale
+                    )
+                segmentData = try writer.generateMuxedSegment(
+                    video: MuxedTrackInput(
+                        segment: seg, analysis: videoAnalysis
+                    ),
+                    audio: MuxedTrackInput(
+                        segment: audioSeg, analysis: audio
+                    ),
+                    sequenceNumber: seq,
+                    sourceData: context.sourceData
                 )
             } else {
                 segmentData = try writer.generateMediaSegment(
-                    segmentInfo: videoSeg,
+                    segmentInfo: seg,
                     sequenceNumber: seq,
-                    trackAnalysis: context.videoAnalysis,
+                    trackAnalysis: videoAnalysis,
                     sourceData: context.sourceData
                 )
             }
@@ -228,139 +304,49 @@ extension MP4Segmenter {
                 pattern: context.config.segmentNamePattern,
                 index: index
             )
-            segments.append(
+            result.append(
                 MediaSegmentOutput(
                     index: index, data: segmentData,
-                    duration: videoSeg.duration,
+                    duration: seg.duration,
                     filename: filename,
                     byteRangeOffset: nil,
                     byteRangeLength: nil
                 )
             )
         }
-        return segments
+        return result
     }
 
-    private func buildMuxedSegment(
-        writer: MediaSegmentWriter,
-        videoSegment: SegmentInfo,
+    private func generateAudioOnlySegments(
+        segments: [SegmentInfo],
         audioAnalysis: MP4TrackAnalysis,
-        context: SegmentContext,
-        sequenceNumber: UInt32
-    ) throws(MP4Error) -> Data {
-        let audioSeg = audioAnalysis.locator.alignedAudioSegment(
-            for: videoSegment,
-            videoTimescale: context.videoAnalysis.info.timescale
-        )
-        return try writer.generateMuxedSegment(
-            video: MuxedTrackInput(
-                segment: videoSegment,
-                analysis: context.videoAnalysis
-            ),
-            audio: MuxedTrackInput(
-                segment: audioSeg, analysis: audioAnalysis
-            ),
-            sequenceNumber: sequenceNumber,
-            sourceData: context.sourceData
-        )
-    }
-}
-
-// MARK: - Byte-Range
-
-extension MP4Segmenter {
-
-    private func applyByteRangeOffsets(
-        segments: [MediaSegmentOutput],
-        config: SegmentationConfig
-    ) -> [MediaSegmentOutput] {
-        guard config.outputMode == .byteRange else {
-            return segments
-        }
-        var offset: UInt64 = 0
+        writer: MediaSegmentWriter,
+        context: SegmentContext
+    ) throws(MP4Error) -> [MediaSegmentOutput] {
         var result: [MediaSegmentOutput] = []
-        for seg in segments {
-            let length = UInt64(seg.data.count)
+        for (index, seg) in segments.enumerated() {
+            let seq = UInt32(index + 1)
+            let segmentData = try writer.generateMediaSegment(
+                segmentInfo: seg,
+                sequenceNumber: seq,
+                trackAnalysis: audioAnalysis,
+                sourceData: context.sourceData
+            )
+            let filename = segmentFilename(
+                pattern: context.config.segmentNamePattern,
+                index: index
+            )
             result.append(
                 MediaSegmentOutput(
-                    index: seg.index, data: seg.data,
+                    index: index, data: segmentData,
                     duration: seg.duration,
-                    filename: seg.filename,
-                    byteRangeOffset: offset,
-                    byteRangeLength: length
+                    filename: filename,
+                    byteRangeOffset: nil,
+                    byteRangeLength: nil
                 )
             )
-            offset += length
         }
         return result
     }
-}
 
-// MARK: - Helpers
-
-extension MP4Segmenter {
-
-    func segmentFilename(
-        pattern: String, index: Int
-    ) -> String {
-        guard let range = pattern.range(of: "%d") else {
-            return pattern
-        }
-        return pattern.replacingCharacters(
-            in: range, with: "\(index)"
-        )
-    }
-
-    private func writeResult(
-        _ result: SegmentationResult,
-        to directory: URL
-    ) throws {
-        let config = result.config
-        let initURL = directory.appendingPathComponent(
-            config.initSegmentName
-        )
-        try result.initSegment.write(to: initURL)
-
-        if config.outputMode == .byteRange {
-            try writeByteRangeFile(result, to: directory)
-        } else {
-            for segment in result.mediaSegments {
-                let segURL = directory.appendingPathComponent(
-                    segment.filename
-                )
-                try segment.data.write(to: segURL)
-            }
-        }
-
-        if let playlist = result.playlist {
-            let playlistURL = directory.appendingPathComponent(
-                config.playlistName
-            )
-            try playlist.write(
-                to: playlistURL, atomically: true,
-                encoding: .utf8
-            )
-        }
-    }
-
-    private func writeByteRangeFile(
-        _ result: SegmentationResult,
-        to directory: URL
-    ) throws {
-        let filename = byteRangeSegmentFilename(
-            config: result.config
-        )
-        let fileURL = directory.appendingPathComponent(filename)
-        var combined = Data()
-        for segment in result.mediaSegments {
-            combined.append(segment.data)
-        }
-        try combined.write(to: fileURL)
-    }
-
-    func byteRangeSegmentFilename(
-        config: SegmentationConfig
-    ) -> String {
-        "segments.m4s"
-    }
 }

@@ -90,9 +90,7 @@ struct ManifestGenerateCommand: AsyncParsableCommand {
         let variants = config.variants.map { v in
             Variant(
                 bandwidth: v.bandwidth,
-                resolution: v.resolution.map {
-                    Resolution(width: $0.width, height: $0.height)
-                },
+                resolution: v.resolution,
                 uri: v.uri,
                 averageBandwidth: v.averageBandwidth,
                 codecs: v.codecs,
@@ -312,12 +310,7 @@ struct ManifestConfig: Codable, Sendable {
         let uri: String
         let averageBandwidth: Int?
         let codecs: String?
-        let resolution: ResolutionConfig?
+        let resolution: Resolution?
         let frameRate: Double?
-    }
-
-    struct ResolutionConfig: Codable, Sendable {
-        let width: Int
-        let height: Int
     }
 }

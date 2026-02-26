@@ -147,6 +147,27 @@ struct ManifestConfigTests {
         #expect(config.variants[0].codecs == nil)
         #expect(config.variants[0].frameRate == nil)
     }
+
+    @Test("BUG-4: Decode ManifestConfig with string resolution")
+    func decodeStringResolution() throws {
+        let json = """
+            {
+                "variants": [
+                    {
+                        "bandwidth": 2800000,
+                        "resolution": "1280x720",
+                        "uri": "720p/playlist.m3u8",
+                        "codecs": "avc1.64001f,mp4a.40.2"
+                    }
+                ]
+            }
+            """
+        let config = try JSONDecoder().decode(
+            ManifestConfig.self, from: Data(json.utf8)
+        )
+        #expect(config.variants[0].resolution?.width == 1280)
+        #expect(config.variants[0].resolution?.height == 720)
+    }
 }
 
 // MARK: - ManifestGenerateCommand Integration

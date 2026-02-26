@@ -83,22 +83,35 @@
                 pipeline.audioReaderOutput != nil
                 && pipeline.audioWriterInput != nil
 
-            while videoActive || audioActive {
-                if videoActive {
-                    videoActive = try await drainOneSample(
-                        output: pipeline.videoReaderOutput,
-                        input: pipeline.videoWriterInput,
-                        durationSeconds: durationSeconds
-                    )
-                }
+            do {
+                while videoActive || audioActive {
+                    if videoActive {
+                        videoActive = try await drainOneSample(
+                            output: pipeline.videoReaderOutput,
+                            input: pipeline.videoWriterInput,
+                            durationSeconds: durationSeconds
+                        )
+                    }
 
-                if audioActive {
-                    audioActive = try await drainOneSample(
-                        output: pipeline.audioReaderOutput,
-                        input: pipeline.audioWriterInput,
-                        durationSeconds: 0
-                    )
+                    if audioActive {
+                        audioActive = try await drainOneSample(
+                            output: pipeline.audioReaderOutput,
+                            input: pipeline.audioWriterInput,
+                            durationSeconds: 0
+                        )
+                    }
                 }
+            } catch {
+                let writerErr =
+                    pipeline.writer.error?.localizedDescription
+                    ?? "none"
+                let readerStatus = pipeline.reader.status
+                    .rawValue
+                throw TranscodingError.encodingFailed(
+                    "\(error.localizedDescription)"
+                        + " (writer error: \(writerErr),"
+                        + " reader status: \(readerStatus))"
+                )
             }
         }
 

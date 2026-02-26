@@ -242,15 +242,27 @@ extension SampleLocator {
     /// target duration. For audio tracks (no stss), segments are
     /// cut at the target duration.
     ///
-    /// - Parameter targetDuration: Target segment duration in seconds.
+    /// - Parameters:
+    ///   - targetDuration: Target segment duration in seconds.
+    ///   - forceAllSync: When true, treats every sample as a sync
+    ///     sample. Use for audio-only segmentation where stss may
+    ///     contain chapter markers instead of codec sync points.
     /// - Returns: Array of segment descriptions.
     public func calculateSegments(
-        targetDuration: Double
+        targetDuration: Double,
+        forceAllSync: Bool = false
     ) -> [SegmentInfo] {
         let totalSamples = sampleTable.sampleCount
         guard totalSamples > 0, timescale > 0 else { return [] }
 
         let targetTicks = UInt64(targetDuration * Double(timescale))
+
+        if forceAllSync {
+            return calculateDurationSegments(
+                targetTicks: targetTicks
+            )
+        }
+
         let syncIndices = syncSampleIndices()
         guard !syncIndices.isEmpty else { return [] }
 
@@ -303,6 +315,71 @@ extension SampleLocator {
                         forSample: segmentStart
                     ),
                     startsWithKeyframe: isSyncSample(segmentStart)
+                )
+            )
+        }
+
+        return segments
+    }
+
+    /// Calculate segments at fixed duration boundaries.
+    ///
+    /// Efficiently walks the time-to-sample table to find cut
+    /// points at the target duration, treating every sample as a
+    /// sync sample. Used for audio-only segmentation.
+    private func calculateDurationSegments(
+        targetTicks: UInt64
+    ) -> [SegmentInfo] {
+        let totalSamples = sampleTable.sampleCount
+        var segments: [SegmentInfo] = []
+        var segmentStart = 0
+        var segmentStartDTS: UInt64 = 0
+        var currentDTS: UInt64 = 0
+        var sampleIdx = 0
+
+        for entry in sampleTable.timeToSample {
+            let count = Int(entry.sampleCount)
+            let delta = UInt64(entry.sampleDelta)
+            for _ in 0..<count {
+                if sampleIdx > segmentStart {
+                    let elapsed = currentDTS - segmentStartDTS
+                    if elapsed >= targetTicks {
+                        let segCount = sampleIdx - segmentStart
+                        let duration =
+                            Double(elapsed) / Double(timescale)
+                        segments.append(
+                            SegmentInfo(
+                                firstSample: segmentStart,
+                                sampleCount: segCount,
+                                duration: duration,
+                                startDTS: segmentStartDTS,
+                                startPTS: segmentStartDTS,
+                                startsWithKeyframe: true
+                            )
+                        )
+                        segmentStart = sampleIdx
+                        segmentStartDTS = currentDTS
+                    }
+                }
+                currentDTS += delta
+                sampleIdx += 1
+            }
+        }
+
+        // Last segment
+        let lastCount = totalSamples - segmentStart
+        if lastCount > 0 {
+            let duration =
+                Double(currentDTS - segmentStartDTS)
+                / Double(timescale)
+            segments.append(
+                SegmentInfo(
+                    firstSample: segmentStart,
+                    sampleCount: lastCount,
+                    duration: duration,
+                    startDTS: segmentStartDTS,
+                    startPTS: segmentStartDTS,
+                    startsWithKeyframe: true
                 )
             )
         }

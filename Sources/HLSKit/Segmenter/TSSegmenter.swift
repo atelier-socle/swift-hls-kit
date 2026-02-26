@@ -129,8 +129,12 @@ extension TSSegmenter {
         let tracks = try infoParser.parseTrackAnalysis(
             from: boxes
         )
+        let supportedVideoCodecs: Set<String> = [
+            "avc1", "avc3", "hvc1", "hev1"
+        ]
         let video = tracks.first {
             $0.info.mediaType == .video
+                && supportedVideoCodecs.contains($0.info.codec)
         }
         let audio = tracks.first {
             $0.info.mediaType == .audio
