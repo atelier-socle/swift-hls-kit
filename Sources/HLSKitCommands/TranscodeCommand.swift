@@ -5,6 +5,15 @@ import ArgumentParser
 import Foundation
 import HLSKit
 
+#if canImport(Glibc)
+    import Glibc
+#elseif canImport(Darwin)
+    import Darwin
+#elseif canImport(Musl)
+    import Musl
+#endif
+
+
 /// Transcode and segment a media file into multi-quality HLS.
 ///
 /// ```
@@ -64,6 +73,12 @@ struct TranscodeCommand: AsyncParsableCommand {
     )
     var duration: Double = 6.0
 
+    @Option(
+        name: .long,
+        help: "Timeout in seconds (default: 300, 0 = none)"
+    )
+    var timeout: Double = 300
+
     @Flag(name: .long, help: "Suppress output")
     var quiet: Bool = false
 
@@ -86,7 +101,6 @@ struct TranscodeCommand: AsyncParsableCommand {
 
         let inputURL = URL(fileURLWithPath: input)
         let outputURL = URL(fileURLWithPath: output)
-        let engine = HLSEngine()
 
         guard FileManager.default.fileExists(atPath: input) else {
             printErr("Error: file not found: \(input)")
@@ -109,15 +123,27 @@ struct TranscodeCommand: AsyncParsableCommand {
 
         let config = TranscodingConfig(
             segmentDuration: duration,
-            audioPassthrough: false
+            audioPassthrough: false,
+            timeout: timeout
         )
 
+        let startTime = Date().timeIntervalSinceReferenceDate
+        let showProgress = !quiet
+        let progressCallback: (@Sendable (Double) -> Void)? =
+            showProgress
+            ? { @Sendable fraction in
+                Self.reportProgress(
+                    fraction: fraction, startTime: startTime
+                )
+            }
+            : nil
+
         try await executeTranscode(
-            engine: engine,
             inputURL: inputURL,
             outputURL: outputURL,
             variants: variants,
-            config: config
+            config: config,
+            progress: progressCallback
         )
     }
 }
@@ -127,20 +153,23 @@ struct TranscodeCommand: AsyncParsableCommand {
 extension TranscodeCommand {
 
     private func executeTranscode(
-        engine: HLSEngine,
         inputURL: URL,
         outputURL: URL,
         variants: [QualityPreset],
-        config: TranscodingConfig
+        config: TranscodingConfig,
+        progress: (@Sendable (Double) -> Void)?
     ) async throws {
+        let engine = HLSEngine()
         if variants.count == 1, let single = variants.first {
             let result = try await engine.transcode(
                 input: inputURL,
                 outputDirectory: outputURL,
                 preset: single,
-                config: config
+                config: config,
+                progress: progress
             )
             if !quiet {
+                Self.clearProgressLine()
                 print(
                     ColorOutput.success("Transcoding complete")
                 )
@@ -151,9 +180,11 @@ extension TranscodeCommand {
                 input: inputURL,
                 outputDirectory: outputURL,
                 variants: variants,
-                config: config
+                config: config,
+                progress: progress
             )
             if !quiet {
+                Self.clearProgressLine()
                 print(
                     ColorOutput.success("Transcoding complete")
                 )
@@ -163,6 +194,43 @@ extension TranscodeCommand {
                     print("  Master: \(master)")
                 }
             }
+        }
+    }
+
+    private static func reportProgress(
+        fraction: Double, startTime: Double
+    ) {
+        let elapsed =
+            Date().timeIntervalSinceReferenceDate - startTime
+        let percent = Int(fraction * 100)
+        let minutes = Int(elapsed) / 60
+        let seconds = Int(elapsed) % 60
+        let timeStr = String(
+            format: "%dm %02ds", minutes, seconds
+        )
+        var stderr = FileHandleOutputStream(
+            FileHandle.standardError
+        )
+        let isTTY = isatty(STDERR_FILENO) != 0
+        if isTTY {
+            print(
+                "\r  Progress: \(percent)% (\(timeStr) elapsed)",
+                terminator: "",
+                to: &stderr
+            )
+        }
+    }
+
+    private static func clearProgressLine() {
+        let isTTY = isatty(STDERR_FILENO) != 0
+        if isTTY {
+            var stderr = FileHandleOutputStream(
+                FileHandle.standardError
+            )
+            print(
+                "\r\u{1B}[2K", terminator: "",
+                to: &stderr
+            )
         }
     }
 }

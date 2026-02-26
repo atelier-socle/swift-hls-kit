@@ -42,11 +42,10 @@ struct InfoCommand: AsyncParsableCommand {
 
         if input.hasSuffix(".m3u8") {
             try displayManifestInfo(url: url, formatter: formatter)
-        } else if input.hasSuffix(".mp4")
-            || input.hasSuffix(".m4a")
-            || input.hasSuffix(".m4v")
-        {
+        } else if isMP4Container(input) {
             try displayMP4Info(url: url, formatter: formatter)
+        } else if isMediaFile(input) {
+            try await displayAVInfo(url: url, formatter: formatter)
         } else {
             try displayDirectoryInfo(
                 url: url, formatter: formatter
@@ -304,6 +303,44 @@ extension InfoCommand {
     }
 }
 
+// MARK: - AVFoundation Info
+
+extension InfoCommand {
+
+    private func isMP4Container(_ path: String) -> Bool {
+        let ext = (path as NSString).pathExtension.lowercased()
+        return ["mp4", "m4a", "m4v", "mov"].contains(ext)
+    }
+
+    private func isMediaFile(_ path: String) -> Bool {
+        let ext = (path as NSString).pathExtension.lowercased()
+        let mediaExts: Set<String> = [
+            "mp3", "wav", "aiff", "aif", "flac", "ogg",
+            "wma", "caf", "m4a", "m4v", "mov", "mp4",
+            "avi", "mkv", "ts", "mts"
+        ]
+        return mediaExts.contains(ext)
+    }
+
+    private func displayAVInfo(
+        url: URL, formatter: OutputFormatter
+    ) async throws {
+        #if canImport(AVFoundation) && !os(watchOS)
+            try await displayAVFoundationInfo(
+                url: url, formatter: formatter
+            )
+        #else
+            let ext = (input as NSString)
+                .pathExtension.uppercased()
+            printErr(
+                "Error: \(ext) info requires macOS"
+                    + " (AVFoundation not available on Linux)"
+            )
+            throw ExitCode(ExitCodes.generalError)
+        #endif
+    }
+}
+
 // MARK: - Helpers
 
 extension InfoCommand {
@@ -319,7 +356,7 @@ extension InfoCommand {
         )
     }
 
-    private func printJSON(_ object: Any) {
+    func printJSON(_ object: Any) {
         guard
             let data = try? JSONSerialization.data(
                 withJSONObject: object,

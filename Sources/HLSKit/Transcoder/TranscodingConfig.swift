@@ -58,6 +58,10 @@ public struct TranscodingConfig: Sendable, Hashable {
     /// Default: `false` (single-pass)
     public var twoPass: Bool
 
+    /// Maximum time in seconds for transcoding (0 = no timeout).
+    /// Default: 300 (5 minutes).
+    public var timeout: Double
+
     /// Custom metadata to include in output files.
     public var metadata: [String: String]
 
@@ -74,6 +78,7 @@ public struct TranscodingConfig: Sendable, Hashable {
     ///   - audioPassthrough: Whether to pass through audio.
     ///   - hardwareAcceleration: Whether to use HW acceleration.
     ///   - twoPass: Whether to use two-pass encoding.
+    ///   - timeout: Maximum transcoding time in seconds.
     ///   - metadata: Custom metadata key-value pairs.
     public init(
         videoCodec: OutputVideoCodec = .h264,
@@ -86,6 +91,7 @@ public struct TranscodingConfig: Sendable, Hashable {
         audioPassthrough: Bool = true,
         hardwareAcceleration: Bool = true,
         twoPass: Bool = false,
+        timeout: Double = 300,
         metadata: [String: String] = [:]
     ) {
         self.videoCodec = videoCodec
@@ -98,6 +104,7 @@ public struct TranscodingConfig: Sendable, Hashable {
         self.audioPassthrough = audioPassthrough
         self.hardwareAcceleration = hardwareAcceleration
         self.twoPass = twoPass
+        self.timeout = timeout
         self.metadata = metadata
     }
 }

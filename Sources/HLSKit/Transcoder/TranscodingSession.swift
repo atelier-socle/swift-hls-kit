@@ -76,9 +76,10 @@
             _ pipeline: Pipeline
         ) async throws {
             let durationSeconds = sourceDuration.seconds
-            var videoActive =
+            let hasVideoTrack =
                 pipeline.videoReaderOutput != nil
                 && pipeline.videoWriterInput != nil
+            var videoActive = hasVideoTrack
             var audioActive =
                 pipeline.audioReaderOutput != nil
                 && pipeline.audioWriterInput != nil
@@ -97,7 +98,8 @@
                         audioActive = try await drainOneSample(
                             output: pipeline.audioReaderOutput,
                             input: pipeline.audioWriterInput,
-                            durationSeconds: 0
+                            durationSeconds: hasVideoTrack
+                                ? 0 : durationSeconds
                         )
                     }
                 }

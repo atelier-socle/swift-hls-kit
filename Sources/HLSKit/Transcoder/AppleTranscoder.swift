@@ -149,6 +149,40 @@
             job: TranscodeJob,
             progress: (@Sendable (Double) -> Void)?
         ) async throws {
+            let timeout = job.config.timeout
+            if timeout > 0 {
+                try await withThrowingTaskGroup(
+                    of: Void.self
+                ) { group in
+                    group.addTask {
+                        try await self.runTranscodePipeline(
+                            job: job, progress: progress
+                        )
+                    }
+                    group.addTask {
+                        try await Task.sleep(
+                            nanoseconds: UInt64(timeout * 1e9)
+                        )
+                        throw TranscodingError.timeout(
+                            "Transcoding timed out after"
+                                + " \(Int(timeout))s"
+                        )
+                    }
+                    // First to finish wins; cancel the other
+                    try await group.next()
+                    group.cancelAll()
+                }
+            } else {
+                try await runTranscodePipeline(
+                    job: job, progress: progress
+                )
+            }
+        }
+
+        private func runTranscodePipeline(
+            job: TranscodeJob,
+            progress: (@Sendable (Double) -> Void)?
+        ) async throws {
             let asset = AVURLAsset(url: job.input)
             let tracks = try await asset.load(.tracks)
             let duration = try await asset.load(.duration)
@@ -165,8 +199,6 @@
             let audioFormatHint = try await audioTrack?
                 .load(.formatDescriptions).first
 
-            // Build composition with only audio/video to exclude
-            // text tracks that break AVAssetReader/Writer.
             let filtered = try filteredComposition(
                 duration: duration,
                 videoTrack: videoTrack,

@@ -104,6 +104,72 @@ public struct AnnexBConverter: Sendable {
         return (sps: spsData, pps: ppsData)
     }
 
+    /// HEVC parameter sets in Annex B format.
+    public struct HEVCParameterSets: Sendable {
+        /// VPS NAL units in Annex B format.
+        public let vps: Data
+        /// SPS NAL units in Annex B format.
+        public let sps: Data
+        /// PPS NAL units in Annex B format.
+        public let pps: Data
+    }
+
+    /// Extract VPS, SPS and PPS from hvcC box data.
+    ///
+    /// The hvcC box (HEVCDecoderConfigurationRecord) contains
+    /// arrays of NAL units organized by type. VPS=32, SPS=33,
+    /// PPS=34.
+    ///
+    /// - Parameter hvcCData: Raw hvcC box payload.
+    /// - Returns: HEVC parameter sets in Annex B format.
+    /// - Throws: `TransportError.invalidAVCConfig` if invalid.
+    public func extractHEVCParameterSets(
+        from hvcCData: Data
+    ) throws -> HEVCParameterSets {
+        guard hvcCData.count >= 23 else {
+            throw TransportError.invalidAVCConfig(
+                "hvcC data too short: \(hvcCData.count) bytes"
+            )
+        }
+
+        let base = hvcCData.startIndex
+        let numArrays = Int(hvcCData[base + 22])
+        var offset = base + 23
+
+        var vpsData = Data()
+        var spsData = Data()
+        var ppsData = Data()
+
+        for _ in 0..<numArrays {
+            guard offset + 3 <= hvcCData.endIndex else { break }
+            let nalType = Int(hvcCData[offset] & 0x3F)
+            offset += 1
+            let numNalus = Int(readUInt16(hvcCData, at: offset))
+            offset += 2
+
+            for _ in 0..<numNalus {
+                let nalData = try readNALUnit(
+                    from: hvcCData, at: &offset
+                )
+                appendNAL(
+                    nalData, type: nalType,
+                    vps: &vpsData, sps: &spsData,
+                    pps: &ppsData
+                )
+            }
+        }
+
+        guard !spsData.isEmpty else {
+            throw TransportError.invalidAVCConfig(
+                "no HEVC SPS found in hvcC"
+            )
+        }
+
+        return HEVCParameterSets(
+            vps: vpsData, sps: spsData, pps: ppsData
+        )
+    }
+
     /// Build a complete keyframe access unit for MPEG-TS.
     ///
     /// Prepends SPS + PPS (in Annex B format) to the converted
@@ -178,6 +244,45 @@ extension AnnexBConverter {
             ppsData.append(Self.startCode)
             ppsData.append(avcCData[offset..<(offset + ppsLength)])
             offset += ppsLength
+        }
+    }
+
+    private func readNALUnit(
+        from data: Data, at offset: inout Int
+    ) throws -> Data {
+        guard offset + 2 <= data.endIndex else {
+            throw TransportError.invalidAVCConfig(
+                "truncated hvcC: missing NAL length"
+            )
+        }
+        let nalLength = Int(readUInt16(data, at: offset))
+        offset += 2
+        guard offset + nalLength <= data.endIndex else {
+            throw TransportError.invalidAVCConfig(
+                "truncated hvcC: incomplete NAL data"
+            )
+        }
+        let nalData = Data(data[offset..<(offset + nalLength)])
+        offset += nalLength
+        return nalData
+    }
+
+    private func appendNAL(
+        _ nalData: Data, type: Int,
+        vps: inout Data, sps: inout Data, pps: inout Data
+    ) {
+        switch type {
+        case 32:
+            vps.append(Self.startCode)
+            vps.append(nalData)
+        case 33:
+            sps.append(Self.startCode)
+            sps.append(nalData)
+        case 34:
+            pps.append(Self.startCode)
+            pps.append(nalData)
+        default:
+            break
         }
     }
 

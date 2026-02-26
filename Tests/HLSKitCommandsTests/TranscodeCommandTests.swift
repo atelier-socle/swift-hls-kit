@@ -98,6 +98,28 @@ struct TranscodeCommandTests {
         #expect(cmd.input == nil)
     }
 
+    @Test("Parse --timeout flag with default")
+    func parseTimeoutDefault() throws {
+        let cmd = try TranscodeCommand.parse(["input.mp4"])
+        #expect(cmd.timeout == 300)
+    }
+
+    @Test("Parse --timeout flag with custom value")
+    func parseTimeoutCustom() throws {
+        let cmd = try TranscodeCommand.parse([
+            "input.mp4", "--timeout", "60"
+        ])
+        #expect(cmd.timeout == 60)
+    }
+
+    @Test("Parse --timeout 0 disables timeout")
+    func parseTimeoutZero() throws {
+        let cmd = try TranscodeCommand.parse([
+            "input.mp4", "--timeout", "0"
+        ])
+        #expect(cmd.timeout == 0)
+    }
+
     @Test("Preset aliases: low, medium, high")
     func presetAliases() throws {
         let low = try TranscodeCommand.parse([
