@@ -47,6 +47,11 @@ public actor LivePipeline {
     private var configuration: LivePipelineConfiguration?
     private var startDate: Date?
     private var pendingDiscontinuity: Bool = false
+    private var discontinuityCount: Int = 0
+    private var totalSegmentDuration: TimeInterval = 0
+    private var lastSegmentDuration: TimeInterval = 0
+    private var lastSegmentBytes: Int = 0
+    private var recordedSegmentCount: Int = 0
 
     // MARK: - Init
 
@@ -85,6 +90,11 @@ public actor LivePipeline {
         self.segmentsProduced = 0
         self.totalBytes = 0
         self.pendingDiscontinuity = false
+        self.discontinuityCount = 0
+        self.totalSegmentDuration = 0
+        self.lastSegmentDuration = 0
+        self.lastSegmentBytes = 0
+        self.recordedSegmentCount = 0
 
         let now = Date()
         self.startDate = now
@@ -145,6 +155,9 @@ public actor LivePipeline {
         let index = segmentsProduced
         segmentsProduced += 1
         totalBytes += Int64(data.count)
+        totalSegmentDuration += duration
+        lastSegmentDuration = duration
+        lastSegmentBytes = data.count
 
         if pendingDiscontinuity {
             continuation.yield(.discontinuityInserted)
@@ -156,6 +169,7 @@ public actor LivePipeline {
         )
 
         if configuration?.enableRecording == true {
+            recordedSegmentCount += 1
             continuation.yield(.recordingSegmentSaved(filename: filename))
         }
     }
@@ -164,6 +178,7 @@ public actor LivePipeline {
     public func insertDiscontinuity() {
         guard case .running = state else { return }
         pendingDiscontinuity = true
+        discontinuityCount += 1
         continuation.yield(.discontinuityInserted)
     }
 
@@ -195,6 +210,32 @@ public actor LivePipeline {
             return 0
         }
         return Date().timeIntervalSince(start)
+    }
+
+    // MARK: - Statistics
+
+    /// Current pipeline statistics snapshot.
+    ///
+    /// Computed from internal state on each access.
+    public var statistics: LivePipelineStatistics {
+        var stats = LivePipelineStatistics()
+        stats.uptime = uptime
+        stats.startDate = startDate
+        stats.segmentsProduced = segmentsProduced
+        stats.totalBytes = totalBytes
+        stats.lastSegmentDuration = lastSegmentDuration
+        stats.lastSegmentBytes = lastSegmentBytes
+        stats.activeDestinations = activeDestinations.count
+        stats.discontinuities = discontinuityCount
+        stats.recordingActive = configuration?.enableRecording ?? false
+        stats.recordedSegments = recordedSegmentCount
+        if segmentsProduced > 0 {
+            stats.averageSegmentDuration = totalSegmentDuration / Double(segmentsProduced)
+        }
+        if uptime > 0 {
+            stats.estimatedBitrate = Int(Double(totalBytes * 8) / uptime)
+        }
+        return stats
     }
 
     // MARK: - Private

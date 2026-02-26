@@ -246,15 +246,13 @@ struct LivePipelinePresetsTests {
     }
 
     @Test("All LL-HLS presets have partTargetDuration < segmentDuration")
-    func llhlsPartDurationValid() {
+    func llhlsPartDurationValid() throws {
         let withLL: [LivePipelineConfiguration] = [
             .webradio, .videoLive, .lowLatencyVideo
         ]
         for preset in withLL {
-            let ll = try? #require(preset.lowLatency)
-            if let ll {
-                #expect(ll.partTargetDuration < preset.segmentDuration)
-            }
+            let ll = try #require(preset.lowLatency)
+            #expect(ll.partTargetDuration < preset.segmentDuration)
         }
     }
 
