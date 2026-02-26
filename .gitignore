@@ -29,3 +29,6 @@ codecov/
 # === Claude Code (local tooling) ===
 CLAUDE.md
 .claude/
+
+# === Local scripts (not committed) ===
+scripts/safe-test.sh
