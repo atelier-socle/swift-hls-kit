@@ -2,7 +2,6 @@
 // Copyright 2026 Atelier Socle SAS
 
 import Foundation
-import os
 
 /// Specialized segmenter for audio-only live streams.
 ///
@@ -64,7 +63,7 @@ public actor AudioSegmenter: LiveSegmenter {
     // MARK: - Private
 
     private let inner: IncrementalSegmenter
-    private let sequenceCounter: OSAllocatedUnfairLock<UInt32>
+    private let sequenceCounter: LockedState<UInt32>
 
     /// Creates an audio segmenter.
     ///
@@ -84,7 +83,7 @@ public actor AudioSegmenter: LiveSegmenter {
         self.configuration = configuration
 
         let cmafWriter = CMAFWriter()
-        let counter = OSAllocatedUnfairLock(initialState: UInt32(0))
+        let counter = LockedState(initialState: UInt32(0))
         self.sequenceCounter = counter
 
         switch containerFormat {

@@ -2,7 +2,6 @@
 // Copyright 2026 Atelier Socle SAS
 
 import Foundation
-import os
 
 /// Specialized segmenter for video (with optional audio) live streams.
 ///
@@ -138,7 +137,7 @@ public actor VideoSegmenter {
         trackID: UInt32,
         timescale: UInt32
     ) -> @Sendable (LiveSegment, [EncodedFrame]) -> LiveSegment {
-        let counter = OSAllocatedUnfairLock(
+        let counter = LockedState(
             initialState: UInt32(0)
         )
         return { segment, frames in
