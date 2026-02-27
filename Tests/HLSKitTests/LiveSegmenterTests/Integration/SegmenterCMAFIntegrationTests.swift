@@ -3,7 +3,6 @@
 
 import Foundation
 import Testing
-import os
 
 @testable import HLSKit
 
@@ -22,7 +21,7 @@ struct SegmenterCMAFIntegrationTests {
             targetDuration: 0.5,
             keyframeAligned: false
         )
-        let counter = OSAllocatedUnfairLock(
+        let counter = LockedState(
             initialState: UInt32(0)
         )
         let transform:

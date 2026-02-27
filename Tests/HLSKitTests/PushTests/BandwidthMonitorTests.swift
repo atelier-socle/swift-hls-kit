@@ -3,7 +3,6 @@
 
 import Foundation
 import Testing
-import os
 
 @testable import HLSKit
 
@@ -103,7 +102,7 @@ struct BandwidthMonitorTests {
 
     @Test("Insufficient bandwidth fires alert")
     func insufficientAlert() async {
-        let alerts = OSAllocatedUnfairLock(
+        let alerts = LockedState(
             initialState: [BandwidthMonitor.BandwidthAlert]()
         )
         let config = BandwidthMonitor.Configuration(
@@ -135,7 +134,7 @@ struct BandwidthMonitorTests {
 
     @Test("Critical bandwidth fires critical alert")
     func criticalAlert() async {
-        let alerts = OSAllocatedUnfairLock(
+        let alerts = LockedState(
             initialState: [BandwidthMonitor.BandwidthAlert]()
         )
         let config = BandwidthMonitor.Configuration(
@@ -165,7 +164,7 @@ struct BandwidthMonitorTests {
 
     @Test("Recovery fires recovered alert")
     func recoveryAlert() async {
-        let alerts = OSAllocatedUnfairLock(
+        let alerts = LockedState(
             initialState: [BandwidthMonitor.BandwidthAlert]()
         )
         let config = BandwidthMonitor.Configuration(
@@ -194,7 +193,7 @@ struct BandwidthMonitorTests {
 
     @Test("Alert only fires on transitions")
     func alertOnTransitionsOnly() async {
-        let alertCount = OSAllocatedUnfairLock(initialState: 0)
+        let alertCount = LockedState(initialState: 0)
         let config = BandwidthMonitor.Configuration(
             windowDuration: 60,
             requiredBitrate: 10_000_000,
@@ -217,7 +216,7 @@ struct BandwidthMonitorTests {
 
     @Test("Minimum samples prevents early alerts")
     func minimumSamples() async {
-        let alertCount = OSAllocatedUnfairLock(initialState: 0)
+        let alertCount = LockedState(initialState: 0)
         let config = BandwidthMonitor.Configuration(
             windowDuration: 10,
             requiredBitrate: 10_000_000,

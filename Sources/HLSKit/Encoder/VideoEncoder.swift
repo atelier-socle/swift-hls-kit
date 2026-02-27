@@ -6,7 +6,6 @@
     import CoreMedia
     import CoreVideo
     import Foundation
-    import os
     import VideoToolbox
 
     /// Real-time video encoder using Apple VideoToolbox.
@@ -45,7 +44,7 @@
         private var frameDuration = 1.0 / 30.0
 
         /// Thread-safe accumulator for VT output callback.
-        private let pendingFrames = OSAllocatedUnfairLock(
+        private let pendingFrames = LockedState(
             initialState: [EncodedFrame]()
         )
 

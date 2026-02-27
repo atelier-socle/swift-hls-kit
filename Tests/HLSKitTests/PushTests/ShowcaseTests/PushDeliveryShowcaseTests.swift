@@ -3,7 +3,6 @@
 
 import Foundation
 import Testing
-import os
 
 @testable import HLSKit
 
@@ -129,7 +128,7 @@ struct PushDeliveryShowcaseTests {
 
     @Test("Bandwidth adaptive: monitor detects drop, callback fires")
     func bandwidthAdaptive() async {
-        let triggered = OSAllocatedUnfairLock(initialState: false)
+        let triggered = LockedState(initialState: false)
         let config = BandwidthMonitor.Configuration(
             windowDuration: 60,
             requiredBitrate: 5_000_000,

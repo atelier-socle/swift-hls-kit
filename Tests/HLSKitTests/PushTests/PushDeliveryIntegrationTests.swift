@@ -3,7 +3,6 @@
 
 import Foundation
 import Testing
-import os
 
 @testable import HLSKit
 
@@ -71,7 +70,7 @@ struct PushDeliveryIntegrationTests {
 
     @Test("BandwidthMonitor + push loop alerts on low bandwidth")
     func bandwidthAlerts() async {
-        let alerts = OSAllocatedUnfairLock(
+        let alerts = LockedState(
             initialState: [BandwidthMonitor.BandwidthAlert]()
         )
         let config = BandwidthMonitor.Configuration(

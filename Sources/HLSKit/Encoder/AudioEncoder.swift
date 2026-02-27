@@ -4,7 +4,6 @@
 #if canImport(AVFoundation)
 
     @preconcurrency import AVFoundation
-    import os
 
     /// Real-time audio encoder using Apple's `AVAudioConverter`.
     ///
@@ -404,7 +403,7 @@
             )
 
             var error: NSError?
-            let pending = OSAllocatedUnfairLock(
+            let pending = LockedState(
                 initialState: true
             )
 
