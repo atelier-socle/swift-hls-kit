@@ -9,7 +9,7 @@ import Foundation
 /// and frame lengths. This parser extracts individual frames from a continuous
 /// byte stream, handling partial data gracefully.
 ///
-/// Compatible with ``ADTSConverter.AACConfig`` for codec parameter extraction.
+/// Compatible with `ADTSConverter.AACConfig` for codec parameter extraction.
 ///
 /// ## Usage
 /// ```swift

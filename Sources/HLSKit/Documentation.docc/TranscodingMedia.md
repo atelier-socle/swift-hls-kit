@@ -76,16 +76,16 @@ let config = TranscodingConfig()
 
 | Codec | Raw Value |
 |-------|-----------|
-| ``VideoCodec/h264`` | `"h264"` |
-| ``VideoCodec/h265`` | `"h265"` |
+| ``OutputVideoCodec/h264`` | `"h264"` |
+| ``OutputVideoCodec/h265`` | `"h265"` |
 
 #### Audio Codecs
 
 | Codec | Raw Value |
 |-------|-----------|
-| ``AudioCodec/aac`` | `"aac"` |
-| ``AudioCodec/heAAC`` | `"heAAC"` |
-| ``AudioCodec/opus`` | `"opus"` |
+| ``OutputAudioCodec/aac`` | `"aac"` |
+| ``OutputAudioCodec/heAAC`` | `"heAAC"` |
+| ``OutputAudioCodec/opus`` | `"opus"` |
 
 #### Video Profiles
 
@@ -167,6 +167,34 @@ let m3u8 = builder.buildMasterPlaylist(
 // m3u8 contains #EXTM3U, BANDWIDTH=, RESOLUTION=
 ```
 
+### Output Codecs
+
+In 0.3.0, ``TranscodingConfig`` exposes additional output codec enumerations:
+
+| Type | Values |
+|------|--------|
+| ``OutputVideoCodec`` | `.h264`, `.h265`, `.vp9`, `.av1` |
+| ``OutputAudioCodec`` | `.aac`, `.heAAC`, `.opus` |
+
+```swift
+let config = TranscodingConfig()
+// config.videoCodec == .h264
+// config.audioCodec == .aac
+// config.hardwareAcceleration == true
+```
+
+### Auto Audio-Only Detection
+
+When a source file contains no video tracks, both ``AppleTranscoder`` and ``FFmpegTranscoder`` automatically switch to the ``QualityPreset/audioOnly`` preset. This is transparent — you request `.p720` and the transcoder detects the source is audio-only:
+
+```swift
+let preset = QualityPreset.audioOnly
+// preset.isAudioOnly == true
+// preset.resolution == nil
+// preset.videoBitrate == nil
+// preset.audioBitrate > 0
+```
+
 ## Cloud Transcoding
 
 For server-side applications where local GPU or FFmpeg are not available, ``ManagedTranscoder`` delegates transcoding to cloud providers (Cloudflare Stream, AWS MediaConvert, Mux). It conforms to the same ``Transcoder`` protocol — callers don't need to know whether transcoding happens locally or in the cloud.
@@ -179,3 +207,4 @@ See <doc:ManagedTranscoding> for configuration and usage.
 - <doc:SegmentingMedia> — Segment transcoded output into HLS segments
 - <doc:EncryptingSegments> — Encrypt transcoded segments
 - <doc:HLSEngine> — Use the engine facade for end-to-end workflows
+- <doc:LiveEncoding> — Live encoding pipeline

@@ -149,6 +149,24 @@ let fileInfo = try MP4InfoParser().parseFileInfo(from: boxes)
 // fileInfo.durationSeconds > 0
 ```
 
+### Segment from URL with Auto-Transcode
+
+In 0.3.0, ``HLSEngine`` can segment non-ISOBMFF files (MP3, WAV, FLAC) by auto-transcoding to M4A first:
+
+```swift
+let result = try await engine.segmentToDirectory(
+    url: inputURL,
+    outputDirectory: outputURL,
+    config: config
+)
+```
+
+Non-MP4 files are automatically detected and transcoded before segmentation. MP4/M4A files are segmented directly.
+
+### LivePipeline Integration
+
+``HLSEngine`` serves as the bridge between VOD workflows and the live pipeline. Use the engine for VOD operations and ``LivePipeline`` for live streaming — both share the same model types.
+
 ## Next Steps
 
 - <doc:ManifestParsing> — Deep dive into manifest parsing
@@ -157,4 +175,5 @@ let fileInfo = try MP4InfoParser().parseFileInfo(from: boxes)
 - <doc:SegmentingMedia> — Segmentation configuration and output
 - <doc:TranscodingMedia> — Transcoding with quality presets
 - <doc:EncryptingSegments> — Encryption methods and key management
+- <doc:LiveStreaming> — Live streaming pipeline
 - <doc:CLIReference> — Command-line workflows

@@ -20,7 +20,7 @@ public struct LivePartialSegment: Sendable, Equatable, Identifiable {
     /// Partial segment index within the parent segment.
     public let index: Int
 
-    /// Identifier for ``Identifiable`` conformance.
+    /// Identifier for `Identifiable` conformance.
     public var id: Int { index }
 
     /// Encoded media data for this partial segment.

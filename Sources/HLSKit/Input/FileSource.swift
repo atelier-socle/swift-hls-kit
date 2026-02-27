@@ -39,7 +39,7 @@ public actor FileSource: MediaSource {
     /// Reads the MP4 box structure and sample tables at init time.
     ///
     /// - Parameter url: Path to an MP4/MOV file.
-    /// - Throws: ``HLSKitError`` if the file cannot be read or parsed.
+    /// - Throws: ``InputError`` if the file cannot be read or parsed.
     public init(url: URL) throws {
         self.url = url
         self.fileData = try Data(contentsOf: url)

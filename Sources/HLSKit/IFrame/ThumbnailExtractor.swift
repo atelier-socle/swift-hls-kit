@@ -286,7 +286,7 @@ public struct ThumbnailExtractor: Sendable {
     ///
     /// Uses `#xywh=x,y,w,h` fragment syntax for tile positions.
     /// - Parameters:
-    ///   - tileSheets: Tile sheets from ``calculateTileLayout``.
+    ///   - tileSheets: Tile sheets from ``calculateTileLayout(thumbnailCount:segmentDurations:)``.
     ///   - baseURL: Base URL prefix for tile filenames.
     /// - Returns: WebVTT string.
     public func generateWebVTT(

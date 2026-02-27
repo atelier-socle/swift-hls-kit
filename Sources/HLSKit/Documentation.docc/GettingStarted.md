@@ -100,6 +100,45 @@ print("Segments: \(result.segmentCount)")
 print("Duration: \(result.totalDuration)s")
 ```
 
+### Quick Start: Live Streaming
+
+HLSKit 0.3.0 adds a complete live streaming pipeline. Here is a minimal audio segmenter:
+
+```swift
+import HLSKit
+
+let audioConfig = CMAFWriter.AudioConfig(
+    sampleRate: 48000, channels: 2, profile: .lc
+)
+let segConfig = LiveSegmenterConfiguration(
+    targetDuration: 2.0,
+    keyframeAligned: false
+)
+let segmenter = AudioSegmenter(
+    audioConfig: audioConfig,
+    configuration: segConfig
+)
+
+// Ingest encoded frames from your capture pipeline
+for frame in encodedFrames {
+    try await segmenter.ingest(frame)
+}
+let finalSegment = try await segmenter.finish()
+
+// Collect emitted CMAF segments
+for await segment in segmenter.segments {
+    print("Segment \(segment.index): \(segment.duration)s")
+}
+```
+
+Or use a pre-built pipeline preset:
+
+```swift
+let config = LivePipelineConfiguration.podcastLive
+// config.audioBitrate == 128_000
+// config.videoEnabled == false
+```
+
 ## Next Steps
 
 - <doc:ManifestParsing> — Parse HLS manifests into typed models
@@ -109,4 +148,5 @@ print("Duration: \(result.totalDuration)s")
 - <doc:TranscodingMedia> — Transcode media with Apple VideoToolbox or FFmpeg
 - <doc:EncryptingSegments> — Encrypt segments with AES-128 or SAMPLE-AES
 - <doc:HLSEngine> — Use the high-level engine facade
+- <doc:LiveStreaming> — Build live streaming pipelines
 - <doc:CLIReference> — Run HLS workflows from the command line

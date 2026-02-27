@@ -8,7 +8,7 @@
 
 ![swift-hls-kit](./assets/banner.png)
 
-A pure Swift library for the full HLS pipeline — parse, generate, and validate M3U8 manifests, segment and transcode media, and encrypt segments for delivery. RFC 8216 compliant with strict `Sendable` conformance throughout. Zero external dependencies in the core library (only `swift-argument-parser` for the CLI). Cross-platform: macOS, iOS, tvOS, watchOS, visionOS, and Linux. Suitable for streaming platforms, media servers, podcast apps, and video processing pipelines.
+A pure Swift library for the full HLS pipeline — parse, generate, and validate M3U8 manifests, segment and transcode media, encrypt segments, and run a complete live streaming pipeline with Low-Latency HLS, multi-destination push, DRM, spatial audio, HDR, and accessibility. RFC 8216 compliant with strict `Sendable` conformance throughout. Zero external dependencies in the core library (only `swift-argument-parser` for the CLI). Cross-platform: macOS, iOS, tvOS, watchOS, visionOS, and Linux. 4478 tests, 31 industry standards covered.
 
 Part of the [Atelier Socle](https://www.atelier-socle.com) ecosystem.
 
@@ -16,21 +16,47 @@ Part of the [Atelier Socle](https://www.atelier-socle.com) ecosystem.
 
 ## Features
 
+### VOD
+
 - **Parse** — Full HLS manifest parsing with typed models for master and media playlists, including Low-Latency HLS extensions
 - **Generate** — Produce spec-compliant M3U8 output with imperative API and `@resultBuilder` DSL
 - **Validate** — Check conformance against RFC 8216 and Apple HLS rules with 3 severity levels
 - **Segment (fMP4)** — Split MP4 files into fragmented MP4 segments with init segment and auto-generated playlist
 - **Segment (MPEG-TS)** — Split MP4 files into MPEG-TS segments for legacy compatibility
 - **Byte-range** — Single-file byte-range segmentation mode
+- **Auto-transcode** — Non-ISOBMFF files (MP3, WAV, FLAC) auto-transcoded to M4A before segmentation
 - **Transcode (Apple)** — Hardware-accelerated encoding via Apple VideoToolbox
 - **Transcode (FFmpeg)** — Cross-platform transcoding with quality presets and multi-variant output
-- **Cloud Transcode** — Delegate to Cloudflare Stream, AWS MediaConvert, or Mux via `ManagedTranscoder` — same `Transcoder` protocol, zero local GPU required
+- **Cloud Transcode** — Delegate to Cloudflare Stream, AWS MediaConvert, or Mux via `ManagedTranscoder`
 - **Encrypt (AES-128)** — Full-segment AES-128-CBC encryption with key rotation
 - **Encrypt (SAMPLE-AES)** — Sample-level encryption for video NAL units and audio ADTS frames
-- **Key management** — Key generation, IV derivation (RFC 8216), and key file I/O
+- **Key management** — Key generation, IV derivation (RFC 8216), key file I/O, and `EncryptedPlaylistBuilder`
+- **I-Frame playlists** — Generate `EXT-X-I-FRAMES-ONLY` playlists for trick play and thumbnails
 - **MP4 inspection** — Container-level MP4 box reading, track analysis, and sample table parsing
-- **CLI** — `hlskit-cli` command-line tool with 6 commands for common HLS workflows
+
+### Live Streaming (0.3.0)
+
+- **Live Pipeline** — End-to-end `LivePipeline` facade: input → encoding → segmentation → playlist → push
+- **Live Encoding** — `LiveEncoder` protocol with `AudioEncoder` (AAC), `VideoEncoder` (H.264/HEVC), FFmpeg-based encoders, and `MultiBitrateEncoder`
+- **Live Segmentation** — CMAF fMP4 segmentation with `AudioSegmenter`, `VideoSegmenter`, `CMAFWriter`, and ring buffer
+- **Live Playlists** — `SlidingWindowPlaylist`, `DVRPlaylist`, `EventPlaylist` with `PlaylistRenderer`
+- **LL-HLS** — Low-Latency HLS with partial segments, blocking reload, delta updates, and server control
+- **Multi-destination push** — `HTTPPusher`, `RTMPPusher`, `SRTPusher`, `IcecastPusher` with failover and bandwidth monitoring
+- **Timed metadata** — ID3, SCTE-35, DateRange, HLS Interstitials injection
+- **Recording** — Simultaneous recording with live-to-VOD conversion and auto chapter generation
+- **Spatial Audio** — Dolby Atmos, AC-3/E-AC-3, multi-channel layouts (5.1, 7.1.4, JOC), Hi-Res audio
+- **HDR Video** — HDR10, HLG, Dolby Vision with adaptive variant ladder generation
+- **Live DRM** — FairPlay Streaming, key rotation, multi-DRM (CENC) interoperability
+- **Accessibility** — CEA-608/708 closed captions, live WebVTT subtitles, audio descriptions
+- **Resilience** — Redundant streams, failover, gap signaling (`EXT-X-GAP`), content steering
+- **Audio Processing** — Format conversion, loudness metering (LUFS), silence detection, channel mixing, normalization
+- **Pipeline Presets** — `podcastLive`, `radioLive`, `videoLive`, `videoSimulcast`, `multiDRMLive`, and more
+
+### Cross-Cutting
+
+- **CLI** — `hlskit-cli` command-line tool with 8 commands for common HLS workflows
 - **Strict concurrency** — All public types are `Sendable`, built with Swift 6.2 strict concurrency throughout
+- **Zero dependencies** — Core library has no third-party dependencies
 
 ---
 
@@ -64,7 +90,7 @@ Then add it to your target:
 
 ---
 
-## Quick Start
+## Quick Start — VOD
 
 ```swift
 import HLSKit
@@ -91,6 +117,45 @@ print("Valid: \(report.isValid)")
 let config = SegmentationConfig(containerFormat: .fragmentedMP4, generatePlaylist: true)
 let result = try engine.segment(data: mp4Data, config: config)
 print("Segments: \(result.segmentCount), Duration: \(result.totalDuration)s")
+```
+
+---
+
+## Quick Start — Live Streaming
+
+```swift
+import HLSKit
+
+let audioConfig = CMAFWriter.AudioConfig(
+    sampleRate: 48000, channels: 2, profile: .lc
+)
+let segConfig = LiveSegmenterConfiguration(
+    targetDuration: 2.0,
+    keyframeAligned: false
+)
+let segmenter = AudioSegmenter(
+    audioConfig: audioConfig,
+    configuration: segConfig
+)
+
+// Ingest encoded frames from your capture pipeline
+for frame in encodedFrames {
+    try await segmenter.ingest(frame)
+}
+let finalSegment = try await segmenter.finish()
+
+// Collect emitted CMAF segments
+for await segment in segmenter.segments {
+    print("Segment \(segment.index): \(segment.duration)s")
+}
+```
+
+Or use a pre-built pipeline preset:
+
+```swift
+let config = LivePipelineConfiguration.podcastLive
+// config.audioBitrate == 128_000
+// config.videoEnabled == false
 ```
 
 ---
@@ -152,6 +217,16 @@ let result = try MP4Segmenter().segment(data: mp4Data, config: config)
 // result.initSegment, result.mediaSegments, result.playlist
 ```
 
+Non-ISOBMFF files (MP3, WAV, FLAC) can be segmented via auto-transcoding:
+
+```swift
+let result = try await engine.segmentToDirectory(
+    url: mp3URL,
+    outputDirectory: outputURL,
+    config: config
+)
+```
+
 ### Transcoding
 
 ```swift
@@ -189,8 +264,6 @@ let result = try await transcoder.transcode(
 | AWS MediaConvert | Access key + secret (SigV4) | Enterprise, existing AWS infra |
 | Mux | Token ID + secret (Basic Auth) | Simplest API, auto-adaptive bitrate |
 
-Features: streaming upload/download (no full file in RAM), granular progress through 5 phases (upload, job creation, polling, download, complete), configurable quality presets (`.p360` to `.p2160`, `.audioOnly`), automatic cloud asset cleanup.
-
 ### Encryption
 
 ```swift
@@ -200,27 +273,64 @@ let encrypted = try SegmentEncryptor().encrypt(segmentData: data, key: key, iv: 
 let decrypted = try SegmentEncryptor().decrypt(segmentData: encrypted, key: key, iv: iv)
 ```
 
+Key rotation via `EncryptedPlaylistBuilder`:
+
+```swift
+let builder = EncryptedPlaylistBuilder()
+let encrypted = builder.addEncryptionTags(
+    to: playlist,
+    config: encryptionConfig,
+    segmentCount: 10
+)
+```
+
+### I-Frame Playlists
+
+```swift
+let generator = IFramePlaylistGenerator(
+    mediaPlaylist: mediaPlaylist,
+    inputDirectory: inputDir
+)
+let iframePlaylist = generator.generate()
+```
+
 ---
 
 ## Architecture
 
 ```
 Sources/
-├── HLSKit/                 # Core library (zero dependencies)
-│   ├── Manifest/           # Models (MasterPlaylist, MediaPlaylist, Variant, Segment, ...)
-│   ├── Parser/             # ManifestParser, TagParser, AttributeParser
-│   ├── Generator/          # ManifestGenerator, TagWriter
-│   ├── Builder/            # @resultBuilder DSL for playlists
-│   ├── Validator/          # HLSValidator, RFC 8216 + Apple HLS rules
-│   ├── Segmenter/          # MP4Segmenter, TSSegmenter
-│   ├── Transcoder/         # AppleTranscoder, FFmpegTranscoder, ManagedTranscoder, QualityPreset
-│   ├── Encryption/         # SegmentEncryptor, SampleEncryptor, KeyManager
-│   ├── Container/          # MP4BoxReader, MP4InfoParser, BinaryReader/Writer
-│   ├── Transport/          # TSSegmentBuilder, TSPacket, PESPacketizer, ADTSConverter
-│   ├── Engine/             # HLSEngine facade
-│   └── Documentation.docc/ # 11 DocC articles
-├── HLSKitCommands/         # CLI command implementations
-└── HLSKitCLI/              # CLI entry point (@main)
+├── HLSKit/                     # Core library (zero dependencies)
+│   ├── Manifest/               # Models (MasterPlaylist, MediaPlaylist, Variant, Segment, ...)
+│   ├── Parser/                 # ManifestParser, TagParser, AttributeParser
+│   ├── Generator/              # ManifestGenerator, TagWriter
+│   ├── Builder/                # @resultBuilder DSL for playlists
+│   ├── Validator/              # HLSValidator, RFC 8216 + Apple HLS rules
+│   ├── Segmenter/              # MP4Segmenter, TSSegmenter
+│   ├── Transcoder/             # AppleTranscoder, FFmpegTranscoder, ManagedTranscoder
+│   ├── Encryption/             # SegmentEncryptor, SampleEncryptor, KeyManager, EncryptedPlaylistBuilder
+│   ├── Container/              # MP4BoxReader, MP4InfoParser, BinaryReader/Writer
+│   ├── Transport/              # TSSegmentBuilder, TSPacket, PES, ADTS/AnnexB
+│   ├── IFrame/                 # IFramePlaylistGenerator, IFrameStreamInfo
+│   ├── Input/                  # MediaSource, FileSource, AudioFormat, RawMediaBuffer
+│   ├── Encoder/                # LiveEncoder, AudioEncoder, VideoEncoder, MultiBitrateEncoder
+│   ├── LiveSegmenter/          # AudioSegmenter, VideoSegmenter, CMAFWriter, SegmentRingBuffer
+│   ├── LivePlaylist/           # SlidingWindowPlaylist, DVRPlaylist, EventPlaylist, PlaylistRenderer
+│   ├── LowLatency/             # LLHLSManager, PartialSegmentManager, BlockingPlaylistHandler
+│   ├── Push/                   # HTTPPusher, RTMPPusher, SRTPusher, IcecastPusher, MultiDestinationPusher
+│   ├── Metadata/               # LiveMetadataInjector, DateRangeManager, SCTE35, ID3
+│   ├── Recording/              # SimultaneousRecorder, LiveToVODConverter, AutoChapterGenerator
+│   ├── Audio/                  # AudioFormatConverter, LevelMeter, LoudnessMeter, SilenceDetector
+│   ├── SpatialAudio/           # SpatialAudioConfig, DolbyAtmosEncoder, MultiChannelLayout
+│   ├── HDR/                    # HDRConfig, HDRVariantGenerator, DolbyVisionProfile
+│   ├── DRM/                    # LiveDRMPipeline, FairPlayLiveConfig, LiveKeyManager, CENCConfig
+│   ├── Accessibility/          # AccessibilityRenditionGenerator, ClosedCaptionConfig, LiveWebVTTWriter
+│   ├── Resilience/             # FailoverManager, RedundantStreamConfig, GapHandler, ContentSteering
+│   ├── LivePipeline/           # LivePipeline, LivePipelineConfiguration, LivePipelineState
+│   ├── Engine/                 # HLSEngine facade
+│   └── Documentation.docc/     # 26 DocC articles
+├── HLSKitCommands/             # CLI command implementations
+└── HLSKitCLI/                  # CLI entry point (@main)
 ```
 
 ---
@@ -241,7 +351,7 @@ cp .build/release/hlskit-cli /usr/local/bin/
 hlskit-cli info video.mp4
 hlskit-cli info playlist.m3u8 --output-format json
 
-# Segment an MP4
+# Segment an MP4 (auto-transcodes MP3/WAV/FLAC)
 hlskit-cli segment video.mp4 --output /tmp/hls/ --format fmp4 --duration 6
 
 # Transcode to multiple variants
@@ -256,6 +366,16 @@ hlskit-cli encrypt /tmp/hls/ --key-url "https://cdn.example.com/key" --write-key
 # Parse or generate manifests
 hlskit-cli manifest parse playlist.m3u8
 hlskit-cli manifest generate /tmp/hls/
+
+# Generate I-Frame playlist
+hlskit-cli iframe --input media.m3u8 --output iframe.m3u8
+
+# Live streaming
+hlskit-cli live start --config pipeline.json
+hlskit-cli live stop
+hlskit-cli live stats
+hlskit-cli live convert-to-vod --input /tmp/live/ --output /tmp/vod/
+hlskit-cli live metadata --key title --value "Episode 42"
 ```
 
 ### Commands
@@ -263,11 +383,13 @@ hlskit-cli manifest generate /tmp/hls/
 | Command | Description |
 |---------|-------------|
 | `info` | Inspect MP4 or M3U8 files (tracks, codec, duration, segments) |
-| `segment` | Split MP4 files into fMP4 or MPEG-TS segments |
+| `segment` | Split MP4 files into fMP4 or MPEG-TS segments (auto-transcodes non-ISOBMFF) |
 | `transcode` | Transcode media to one or more HLS quality variants |
 | `validate` | Validate M3U8 playlists against RFC 8216 and Apple HLS rules |
 | `encrypt` | Encrypt HLS segments with AES-128 or SAMPLE-AES |
 | `manifest` | Parse or generate M3U8 manifests (2 subcommands: `parse`, `generate`) |
+| `iframe` | Generate I-Frame playlists for trick play |
+| `live` | Live streaming pipeline (5 subcommands: `start`, `stop`, `stats`, `convert-to-vod`, `metadata`) |
 
 ---
 
@@ -283,14 +405,31 @@ The project includes a comprehensive test suite using Swift Testing (`import Tes
 | Validator | RFC 8216, Apple HLS rules, severity levels |
 | Segmenter | fMP4, MPEG-TS, byte-range, config, playlist generation |
 | Transcoder | Quality presets, Apple/FFmpeg/Managed availability, multi-variant |
-| Encryption | AES-128, SAMPLE-AES, key management, round-trip |
+| Encryption | AES-128, SAMPLE-AES, key management, key rotation, round-trip |
 | Container | MP4 box reading, sample tables, init/media segment writing |
 | Transport | TS packets, PAT/PMT, PES, ADTS/AnnexB conversion |
+| I-Frame | Playlist generation, stream info, byte-range I-frames |
+| Input | MediaSource, FileSource, AudioFormat, buffer management |
+| Encoder | LiveEncoder, audio/video encoding, multi-bitrate |
+| LiveSegmenter | AudioSegmenter, VideoSegmenter, CMAFWriter, ring buffer |
+| LivePlaylist | Sliding window, DVR, event, renderer, sequence tracking |
+| LowLatency | LL-HLS manager, partial segments, blocking, delta updates |
+| Push | HTTP, RTMP, SRT, Icecast, multi-destination, bandwidth |
+| Metadata | ID3, SCTE-35, DateRange, interstitials |
+| Recording | Simultaneous recording, live-to-VOD, auto chapters |
+| Audio | Format conversion, loudness, silence, channel mixing |
+| SpatialAudio | Dolby Atmos, multi-channel, Hi-Res |
+| HDR | HDR10, HLG, Dolby Vision, ultra-resolution |
+| DRM | FairPlay, key rotation, CENC, multi-DRM |
+| Accessibility | Captions, subtitles, audio descriptions, renditions |
+| Resilience | Failover, redundancy, gap signaling, content steering |
+| LivePipeline | Pipeline lifecycle, presets, statistics, components |
 | Engine | HLSEngine facade, segmentation, encryption, manifest ops |
 | Showcase | Public API demonstrations (executable documentation) |
-| CLI | All 6 commands, argument parsing, integration |
+| CLI | All 8 commands, argument parsing, integration |
+| EndToEnd | Cross-feature integration scenarios |
 
-All tests run on macOS in CI. No XCTest — 100% Swift Testing.
+4478 tests across 526 suites. All tests run on macOS in CI. No XCTest — 100% Swift Testing.
 
 ---
 
@@ -298,20 +437,35 @@ All tests run on macOS in CI. No XCTest — 100% Swift Testing.
 
 Full API documentation is available as a DocC catalog bundled with the package. Open the project in Xcode and select **Product > Build Documentation** to browse it locally.
 
-The catalog includes 11 guides:
+The catalog includes 26 guides:
 
 | Guide | Content |
 |-------|---------|
-| Getting Started | Installation, first workflow, builder DSL |
+| Getting Started | Installation, first workflow, builder DSL, live quick start |
 | Manifest Parsing | ManifestParser, TagParser, AttributeParser, error handling |
 | Manifest Generation | ManifestGenerator, TagWriter, builder DSL, LL-HLS models |
 | Validating Manifests | HLSValidator, rule sets, severity levels, reports |
-| Segmenting Media | MP4Segmenter, TSSegmenter, byte-range, config |
-| Transcoding Media | Quality presets, Apple/FFmpeg transcoders, multi-variant |
+| Segmenting Media | MP4Segmenter, TSSegmenter, byte-range, auto-transcode |
+| Transcoding Media | Quality presets, Apple/FFmpeg transcoders, multi-variant, output codecs |
 | Cloud Transcoding | ManagedTranscoder, Cloudflare/AWS/Mux providers, streaming upload |
-| Encrypting Segments | AES-128, SAMPLE-AES, KeyManager, EncryptionConfig |
+| Encrypting Segments | AES-128, SAMPLE-AES, KeyManager, EncryptedPlaylistBuilder, key rotation |
 | HLSEngine | High-level facade for end-to-end workflows |
-| CLI Reference | 6 commands with options, examples, JSON config |
+| CLI Reference | 8 commands with options, examples, JSON config |
+| Live Streaming | Pipeline architecture overview and use cases |
+| Live Encoding | MediaSource, LiveEncoder, audio/video encoding, multi-bitrate |
+| Live Segmentation | AudioSegmenter, VideoSegmenter, CMAFWriter, CMAF fMP4 |
+| Live Playlists | Sliding window, DVR, event playlists, renderer |
+| Low-Latency HLS | Partial segments, blocking reload, delta updates, server control |
+| Segment Pushing | HTTP, RTMP, SRT, Icecast, multi-destination push |
+| Live Metadata | ID3, SCTE-35, DateRange, HLS Interstitials |
+| Live Recording | Simultaneous recording, live-to-VOD, auto chapters |
+| I-Frame Playlists | IFramePlaylistGenerator, trick play, thumbnails |
+| Audio Processing | Format conversion, loudness metering, silence detection |
+| Spatial Audio | Dolby Atmos, multi-channel layouts, Hi-Res audio |
+| HDR Video | HDR10, HLG, Dolby Vision, ultra-resolution |
+| Live DRM | FairPlay Streaming, key rotation, multi-DRM (CENC) |
+| Accessibility & Resilience | Captions, subtitles, failover, gap signaling |
+| Live Presets | Pipeline presets and composition |
 
 ---
 

@@ -61,7 +61,7 @@ public actor BlockingPlaylistHandler {
     ///
     /// - Parameter request: The blocking playlist request.
     /// - Returns: M3U8 playlist string (full or delta).
-    /// - Throws: ``LLHLSError/requestTimeout`` or
+    /// - Throws: ``LLHLSError/requestTimeout(mediaSequence:partIndex:timeout:)`` or
     ///   ``LLHLSError/streamAlreadyEnded``.
     public func awaitPlaylist(
         for request: BlockingPlaylistRequest

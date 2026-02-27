@@ -155,6 +155,44 @@ let decrypted = try enc.decryptVideoSamples(encrypted, key: key, iv: iv)
 // decrypted == original
 ```
 
+### Encrypted Playlist Builder
+
+``EncryptedPlaylistBuilder`` injects `EXT-X-KEY` tags into an existing M3U8 playlist string, supporting key rotation at configurable intervals:
+
+```swift
+let builder = EncryptedPlaylistBuilder()
+let encrypted = builder.addEncryptionTags(
+    to: playlist,
+    config: encryptionConfig,
+    segmentCount: 10
+)
+// encrypted contains #EXT-X-KEY: tags at rotation boundaries
+```
+
+You can also build a standalone key tag:
+
+```swift
+let builder = EncryptedPlaylistBuilder()
+let tag = builder.buildKeyTag(config: encryptionConfig, iv: ivData)
+// tag == "#EXT-X-KEY:METHOD=AES-128,URI=\"...\",IV=0x..."
+```
+
+#### Key Rotation
+
+Set ``EncryptionConfig/keyRotationInterval`` to rotate keys every N segments:
+
+```swift
+let config = EncryptionConfig(
+    method: .aes128,
+    keyURL: URL(string: "https://example.com/key")!,
+    keyRotationInterval: 10,
+    writeKeyFile: true
+)
+// config.keyRotationInterval == 10
+```
+
+When `keyRotationInterval` is set, ``EncryptedPlaylistBuilder`` inserts a new `EXT-X-KEY` tag every N segments. Set to `1` for per-segment rotation, or `nil` to use a single key for the entire playlist.
+
 ### Encryption Methods
 
 ``EncryptionMethod`` defines the available methods:
@@ -173,3 +211,4 @@ AES-128 and SAMPLE-AES produce different encrypted output for the same input dat
 - <doc:SegmentingMedia> — Segment media before encrypting
 - <doc:ManifestGeneration> — Generate encrypted playlists with `EXT-X-KEY` tags
 - <doc:HLSEngine> — Use the engine facade for segment-and-encrypt workflows
+- <doc:LiveDRM> — Live DRM with FairPlay and key rotation

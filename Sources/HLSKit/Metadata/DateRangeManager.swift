@@ -114,7 +114,7 @@ public actor DateRangeManager {
     /// - Parameters:
     ///   - id: Unique identifier.
     ///   - startDate: Start date of the range.
-    ///   - class: Optional CLASS attribute.
+    ///   - classAttribute: Optional CLASS attribute.
     ///   - plannedDuration: Optional planned duration in seconds.
     ///   - customAttributes: Optional X-* custom attributes.
     public func open(

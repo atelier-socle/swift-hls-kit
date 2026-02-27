@@ -174,7 +174,7 @@ public actor LiveMetadataInjector {
     ///
     /// - Parameters:
     ///   - id: Unique identifier for the range.
-    ///   - class: Optional CLASS attribute.
+    ///   - classAttribute: Optional CLASS attribute.
     ///   - plannedDuration: Optional planned duration.
     ///   - customAttributes: Optional X-* custom attributes.
     public func openDateRange(

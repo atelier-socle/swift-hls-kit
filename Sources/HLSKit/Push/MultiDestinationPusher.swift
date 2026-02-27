@@ -220,7 +220,7 @@ public actor MultiDestinationPusher: SegmentPusher {
     /// Push segment with detailed per-destination results.
     ///
     /// - Parameters:
-    ///   - data: The segment data.
+    ///   - segment: The live segment to push.
     ///   - filename: The filename.
     /// - Returns: A ``PushResult`` with per-destination outcomes.
     public func pushWithResults(

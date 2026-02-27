@@ -134,8 +134,24 @@ let result = try MP4Segmenter().segmentToDirectory(
 | `segmentCount` | Number of media segments |
 | `hasInitSegment` | Whether an init segment was produced |
 
+### Auto-Transcode for Non-ISOBMFF Files
+
+In 0.3.0, the `segment` CLI command and ``HLSEngine`` automatically transcode non-ISOBMFF files (MP3, WAV, FLAC) to M4A before segmentation:
+
+```swift
+// Works with MP3, WAV, FLAC — auto-transcodes to M4A then segments
+let result = try await engine.segmentToDirectory(
+    url: mp3URL,
+    outputDirectory: outputURL,
+    config: config
+)
+```
+
+ISOBMFF detection checks the file's magic bytes (`ftyp` box) to determine if transcoding is needed. MP4, M4A, and MOV files are segmented directly.
+
 ## Next Steps
 
 - <doc:TranscodingMedia> — Transcode media before segmenting
 - <doc:EncryptingSegments> — Encrypt segments after segmentation
 - <doc:HLSEngine> — Use the engine facade for segmentation workflows
+- <doc:LiveSegmentation> — Real-time live segmentation

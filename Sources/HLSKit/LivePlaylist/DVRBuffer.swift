@@ -10,7 +10,7 @@ import Foundation
 /// are evicted automatically.
 ///
 /// ## Difference from SegmentRingBuffer
-/// - ``SegmentRingBuffer``: evicts by **count** (keep last N segments)
+/// - `SegmentRingBuffer`: evicts by **count** (keep last N segments)
 /// - ``DVRBuffer``: evicts by **time** (keep last N seconds/minutes/hours)
 ///
 /// ## Thread safety

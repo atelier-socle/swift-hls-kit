@@ -8,7 +8,7 @@ Run HLS workflows from the command line with `hlskit-cli`.
 
 ## Overview
 
-HLSKit includes a command-line tool with 6 commands for common HLS operations. Install it via Swift Package Manager:
+HLSKit includes a command-line tool with 8 commands for common HLS operations. Install it via Swift Package Manager:
 
 ```bash
 swift build -c release
@@ -22,11 +22,13 @@ The CLI requires the `HLSKitCommands` library, which depends on `swift-argument-
 | Command | Description |
 |---------|-------------|
 | `info` | Inspect MP4 or M3U8 files |
-| `segment` | Split MP4 files into HLS segments |
+| `segment` | Split media files into HLS segments |
 | `transcode` | Transcode media to HLS variants |
 | `validate` | Validate M3U8 playlists |
 | `encrypt` | Encrypt HLS segments |
 | `manifest` | Parse or generate M3U8 manifests |
+| `live` | Live streaming pipeline management |
+| `iframe` | Generate I-frame only playlists |
 
 ---
 
@@ -236,7 +238,78 @@ The JSON config format:
 |--------|---------|-------------|
 | `--output` | — | Output file path |
 
+---
+
+### live
+
+Manage live streaming pipelines. This command has subcommands for starting, stopping, monitoring, converting, and injecting metadata.
+
+```bash
+# Start a live pipeline with a preset
+hlskit-cli live start --preset podcast-live --output /tmp/live/
+
+# Stop the running pipeline
+hlskit-cli live stop
+
+# Show pipeline statistics
+hlskit-cli live stats
+
+# Convert recorded live session to VOD
+hlskit-cli live convert-to-vod /tmp/live/ --output /tmp/vod/
+
+# Inject metadata during a live session
+hlskit-cli live metadata --inject "title=Breaking News"
+```
+
+**Subcommands:**
+
+| Subcommand | Description |
+|------------|-------------|
+| `start` | Start a live pipeline with a preset |
+| `stop` | Stop the running pipeline |
+| `stats` | Show pipeline statistics |
+| `convert-to-vod` | Convert recorded live content to VOD |
+| `metadata` | Inject or query live metadata |
+
+**Available presets:** `podcast-live`, `music-live`, `video-live`, `video-simulcast`
+
+---
+
+### iframe
+
+Generate an I-frame only playlist from a media playlist:
+
+```bash
+# Basic I-frame playlist generation
+hlskit-cli iframe --input stream.m3u8 --output iframe.m3u8
+
+# With interval and byte-range
+hlskit-cli iframe --input stream.m3u8 --output iframe.m3u8 --interval 2.0 --byte-range
+
+# With thumbnail extraction
+hlskit-cli iframe --input stream.m3u8 --output iframe.m3u8 \
+    --thumbnail-output /tmp/thumbs/ --thumbnail-size 320x180
+
+# Quiet mode with JSON output
+hlskit-cli iframe --input stream.m3u8 --output iframe.m3u8 --quiet --output-format json
+```
+
+**Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--input` | (required) | Input media playlist (.m3u8) |
+| `--output` | (required) | Output I-frame playlist path |
+| `--interval` | (from source) | I-frame interval in seconds |
+| `--thumbnail-output` | — | Output directory for thumbnails |
+| `--thumbnail-size` | — | Thumbnail dimensions (WxH) |
+| `--byte-range` | `false` | Include BYTERANGE addressing |
+| `--quiet` | `false` | Suppress output |
+| `--output-format` | `text` | Output format: `text` or `json` |
+
 ## Next Steps
 
 - <doc:GettingStarted> — Use HLSKit as a Swift library
 - <doc:HLSEngine> — Programmatic API for the same workflows
+- <doc:LiveStreaming> — Live streaming architecture
+- <doc:IFramePlaylists> — I-frame playlist generation API
