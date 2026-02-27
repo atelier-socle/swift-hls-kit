@@ -121,7 +121,9 @@ struct TranscodeCommand: AsyncParsableCommand {
             print("")
         }
 
+        let containerFormat = parseContainerFormat(format)
         let config = TranscodingConfig(
+            containerFormat: containerFormat,
             segmentDuration: duration,
             audioPassthrough: false,
             timeout: timeout
@@ -183,6 +185,16 @@ extension TranscodeCommand {
                 config: config,
                 progress: progress
             )
+            if let master = result.masterPlaylist {
+                let masterURL = outputURL.appendingPathComponent(
+                    "master.m3u8"
+                )
+                try master.write(
+                    to: masterURL, atomically: true,
+                    encoding: .utf8
+                )
+            }
+
             if !quiet {
                 Self.clearProgressLine()
                 print(
@@ -190,8 +202,9 @@ extension TranscodeCommand {
                 )
                 let count = result.variants.count
                 print("  Variants: \(count)")
-                if let master = result.masterPlaylist {
-                    print("  Master: \(master)")
+                print("  Output: \(outputURL.path)")
+                if result.masterPlaylist != nil {
+                    print("  Master: master.m3u8")
                 }
             }
         }
@@ -289,6 +302,17 @@ extension TranscodeCommand {
         case "2160p", "4k": return .p2160
         case "audio", "audio-only": return .audioOnly
         default: return nil
+        }
+    }
+
+    private func parseContainerFormat(
+        _ string: String
+    ) -> SegmentationConfig.ContainerFormat {
+        switch string.lowercased() {
+        case "ts", "mpegts", "mpeg-ts":
+            return .mpegTS
+        default:
+            return .fragmentedMP4
         }
     }
 

@@ -18,7 +18,10 @@ import Foundation
 /// ```
 ///
 /// - SeeAlso: ``SegmentEncryptor``, ``EncryptionConfig``
-struct EncryptedPlaylistBuilder: Sendable {
+public struct EncryptedPlaylistBuilder: Sendable {
+
+    /// Creates an encrypted playlist builder.
+    public init() {}
 
     // MARK: - Playlist Injection
 
@@ -32,7 +35,7 @@ struct EncryptedPlaylistBuilder: Sendable {
     ///   - config: Encryption configuration.
     ///   - segmentCount: Total number of segments.
     /// - Returns: Updated playlist with `EXT-X-KEY` tags.
-    func addEncryptionTags(
+    public func addEncryptionTags(
         to playlist: String,
         config: EncryptionConfig,
         segmentCount: Int
@@ -73,7 +76,7 @@ struct EncryptedPlaylistBuilder: Sendable {
     ///   - config: Encryption configuration.
     ///   - iv: Explicit IV data, or `nil` to omit.
     /// - Returns: Complete `EXT-X-KEY` tag line.
-    func buildKeyTag(
+    public func buildKeyTag(
         config: EncryptionConfig,
         iv: Data?
     ) -> String {

@@ -75,8 +75,6 @@ struct SegmentCommand: AsyncParsableCommand {
             throw ExitCode(ExitCodes.fileNotFound)
         }
 
-        try validateMP4Container(inputURL)
-
         let containerFormat = parseContainerFormat(format)
         let outputMode: SegmentationConfig.OutputMode =
             byteRange ? .byteRange : .separateFiles
@@ -102,8 +100,8 @@ struct SegmentCommand: AsyncParsableCommand {
         )
 
         let engine = HLSEngine()
-        let result = try engine.segmentToDirectory(
-            data: Data(contentsOf: inputURL),
+        let result = try await engine.segmentToDirectory(
+            url: inputURL,
             outputDirectory: outputURL,
             config: config
         )
@@ -128,55 +126,6 @@ struct SegmentCommand: AsyncParsableCommand {
                 result, outputDirectory: output
             )
             print(summary)
-        }
-    }
-
-    private func validateMP4Container(
-        _ url: URL
-    ) throws {
-        let ext = url.pathExtension.lowercased()
-        let nonMP4Audio: Set<String> = [
-            "mp3", "wav", "aiff", "aif", "flac", "ogg", "wma"
-        ]
-        if nonMP4Audio.contains(ext) {
-            printErr(
-                "Error: \(ext.uppercased()) files cannot be"
-                    + " segmented directly.\n"
-                    + "Use: hlskit-cli transcode \(input)"
-                    + " --preset audio -o \(output)"
-            )
-            throw ExitCode(ExitCodes.validationError)
-        }
-
-        // Check magic bytes for non-MP4 containers
-        guard
-            let handle = FileHandle(forReadingAtPath: url.path)
-        else {
-            return
-        }
-        defer { handle.closeFile() }
-        let header = handle.readData(ofLength: 12)
-        guard header.count >= 8 else { return }
-
-        // MP4/MOV: bytes 4..7 should be "ftyp" or bytes 4..7
-        // should be a known box type (moov, mdat, free, wide)
-        let boxType =
-            String(
-                data: header.subdata(in: 4..<8),
-                encoding: .ascii
-            ) ?? ""
-        let validBoxTypes: Set<String> = [
-            "ftyp", "moov", "mdat", "free", "wide", "skip",
-            "pnot"
-        ]
-        if !validBoxTypes.contains(boxType) {
-            printErr(
-                "Error: \(url.lastPathComponent) is not an"
-                    + " MP4/MOV container.\n"
-                    + "Use: hlskit-cli transcode \(input)"
-                    + " --preset audio -o \(output)"
-            )
-            throw ExitCode(ExitCodes.validationError)
         }
     }
 

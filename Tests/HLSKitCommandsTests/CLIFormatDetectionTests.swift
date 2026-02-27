@@ -12,8 +12,8 @@ import Testing
 @Suite("Segment Format Detection")
 struct SegmentFormatDetectionTests {
 
-    @Test("segment rejects MP3 with helpful error")
-    func rejectsMP3() async throws {
+    @Test("segment accepts MP3 for auto-transcode")
+    func acceptsMP3() async throws {
         let tmpDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(
@@ -32,18 +32,19 @@ struct SegmentFormatDetectionTests {
         ])
         do {
             try await cmd.run()
-            Issue.record("Expected validation error for MP3")
         } catch let exitCode as ExitCode {
+            // MP3 is NOT rejected as a format error — it goes
+            // through auto-transcode which may fail on fake data
             #expect(
-                exitCode.rawValue == ExitCodes.validationError
+                exitCode.rawValue != ExitCodes.validationError
             )
         } catch {
-            // Other errors are acceptable
+            // Transcode/parse errors are expected for fake data
         }
     }
 
-    @Test("segment rejects WAV with helpful error")
-    func rejectsWAV() async throws {
+    @Test("segment accepts WAV for auto-transcode")
+    func acceptsWAV() async throws {
         let tmpDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(
@@ -61,13 +62,14 @@ struct SegmentFormatDetectionTests {
         ])
         do {
             try await cmd.run()
-            Issue.record("Expected validation error for WAV")
         } catch let exitCode as ExitCode {
+            // WAV is NOT rejected as a format error — it goes
+            // through auto-transcode which may fail on fake data
             #expect(
-                exitCode.rawValue == ExitCodes.validationError
+                exitCode.rawValue != ExitCodes.validationError
             )
         } catch {
-            // Other errors are acceptable
+            // Transcode/parse errors are expected for fake data
         }
     }
 

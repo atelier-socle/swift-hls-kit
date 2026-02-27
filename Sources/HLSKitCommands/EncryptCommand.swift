@@ -106,11 +106,10 @@ struct EncryptCommand: AsyncParsableCommand {
             config: config
         )
 
-        try updatePlaylistWithKey(
+        try updatePlaylistWithEncryption(
             in: dirURL,
-            method: encMethod,
-            keyURL: keyURL,
-            iv: ivData ?? usedKey
+            config: config,
+            segmentCount: segmentFiles.count
         )
 
         if !quiet {
@@ -182,11 +181,10 @@ extension EncryptCommand {
             .sorted()
     }
 
-    private func updatePlaylistWithKey(
+    private func updatePlaylistWithEncryption(
         in directory: URL,
-        method: EncryptionMethod,
-        keyURL: String,
-        iv: Data
+        config: EncryptionConfig,
+        segmentCount: Int
     ) throws {
         let playlistURL = directory.appendingPathComponent(
             "playlist.m3u8"
@@ -202,24 +200,12 @@ extension EncryptCommand {
         let content = try String(
             contentsOf: playlistURL, encoding: .utf8
         )
-        let ivHex =
-            "0x"
-            + iv.map {
-                String(format: "%02x", $0)
-            }.joined()
-        let keyLine =
-            "#EXT-X-KEY:METHOD=\(method.rawValue)"
-            + ",URI=\"\(keyURL)\""
-            + ",IV=\(ivHex)"
-
-        var lines = content.components(separatedBy: "\n")
-        if let idx = lines.firstIndex(where: {
-            $0.hasPrefix("#EXTINF:")
-        }) {
-            lines.insert(keyLine, at: idx)
-        }
-
-        let updated = lines.joined(separator: "\n")
+        let builder = EncryptedPlaylistBuilder()
+        let updated = builder.addEncryptionTags(
+            to: content,
+            config: config,
+            segmentCount: segmentCount
+        )
         try updated.write(
             to: playlistURL, atomically: true, encoding: .utf8
         )
