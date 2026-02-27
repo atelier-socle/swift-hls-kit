@@ -24,6 +24,7 @@ struct TranscodingConfigTests {
         #expect(config.includeAudio)
         #expect(config.audioPassthrough)
         #expect(config.hardwareAcceleration)
+        #expect(config.preferFastPath)
         #expect(!config.twoPass)
         #expect(config.metadata.isEmpty)
     }
@@ -42,6 +43,7 @@ struct TranscodingConfigTests {
             includeAudio: false,
             audioPassthrough: false,
             hardwareAcceleration: false,
+            preferFastPath: false,
             twoPass: true,
             metadata: ["title": "Test"]
         )
@@ -54,6 +56,7 @@ struct TranscodingConfigTests {
         #expect(!config.includeAudio)
         #expect(!config.audioPassthrough)
         #expect(!config.hardwareAcceleration)
+        #expect(!config.preferFastPath)
         #expect(config.twoPass)
         #expect(config.metadata["title"] == "Test")
     }

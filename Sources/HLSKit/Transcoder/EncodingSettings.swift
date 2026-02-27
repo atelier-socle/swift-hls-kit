@@ -3,6 +3,7 @@
 
 #if canImport(AVFoundation) && !os(watchOS)
     import AVFoundation
+    import VideoToolbox
 
     /// Builds AVFoundation encoding settings from HLSKit configuration types.
     ///
@@ -46,21 +47,25 @@
                 ] = min(bitrate, maxBitrate)
             }
 
-            if config.videoCodec == .h264 {
-                let profileLevel = avProfileLevel(
-                    profile: preset.videoProfile,
-                    level: preset.videoLevel,
-                    codec: config.videoCodec
-                )
-                compressionProperties[
-                    AVVideoProfileLevelKey
-                ] = profileLevel
-            }
+            let profileLevel = avProfileLevel(
+                profile: preset.videoProfile,
+                level: preset.videoLevel,
+                codec: config.videoCodec
+            )
+            compressionProperties[
+                AVVideoProfileLevelKey
+            ] = profileLevel
 
             if let frameRate = preset.frameRate {
                 compressionProperties[
                     AVVideoExpectedSourceFrameRateKey
                 ] = frameRate
+            }
+
+            if config.hardwareAcceleration {
+                compressionProperties[
+                    "RealTime"
+                ] = false
             }
 
             return [
@@ -111,7 +116,9 @@
 
             return [
                 kCVPixelBufferPixelFormatTypeKey as String:
-                    kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
+                    kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+                kCVPixelBufferIOSurfacePropertiesKey as String:
+                    [:] as [String: Any]
             ]
         }
 
@@ -170,10 +177,22 @@
             level: String?,
             codec: OutputVideoCodec
         ) -> String {
-            guard codec == .h264 else {
+            switch codec {
+            case .h265:
+                return hevcProfileLevel(profile: profile)
+            case .h264:
+                return h264ProfileLevel(
+                    profile: profile, level: level
+                )
+            default:
                 return AVVideoProfileLevelH264HighAutoLevel
             }
+        }
 
+        private static func h264ProfileLevel(
+            profile: VideoProfile?,
+            level: String?
+        ) -> String {
             switch (profile, level) {
             case (.baseline, "3.0"):
                 return AVVideoProfileLevelH264Baseline30
@@ -193,6 +212,27 @@
                 return AVVideoProfileLevelH264HighAutoLevel
             default:
                 return AVVideoProfileLevelH264HighAutoLevel
+            }
+        }
+
+        /// HEVC profile level string for VideoToolbox.
+        ///
+        /// Uses `kVTProfileLevel_HEVC_Main_AutoLevel` and variants
+        /// encoded as their string values, compatible with
+        /// `AVVideoProfileLevelKey`.
+        private static func hevcProfileLevel(
+            profile: VideoProfile?
+        ) -> String {
+            switch profile {
+            case .baseline, .main, .mainHEVC:
+                return kVTProfileLevel_HEVC_Main_AutoLevel
+                    as String
+            case .high, .main10HEVC:
+                return kVTProfileLevel_HEVC_Main10_AutoLevel
+                    as String
+            case nil:
+                return kVTProfileLevel_HEVC_Main_AutoLevel
+                    as String
             }
         }
 

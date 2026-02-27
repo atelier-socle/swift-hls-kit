@@ -60,6 +60,15 @@ public struct TranscodingConfig: Sendable, Hashable {
     /// Default: `true`
     public var hardwareAcceleration: Bool
 
+    /// Prefer the fast export path using `AVAssetExportSession`.
+    ///
+    /// When enabled, transcoding uses Apple's optimized internal
+    /// pipeline for standard presets (significantly faster).
+    /// Falls back to the manual reader/writer pipeline if the
+    /// export session cannot handle the requested configuration.
+    /// Default: `true`
+    public var preferFastPath: Bool
+
     /// Two-pass encoding for better quality at target bitrate.
     /// Default: `false` (single-pass)
     public var twoPass: Bool
@@ -84,6 +93,7 @@ public struct TranscodingConfig: Sendable, Hashable {
     ///   - audioPassthrough: Whether to pass through audio.
     ///   - videoPassthrough: Whether to pass through video.
     ///   - hardwareAcceleration: Whether to use HW acceleration.
+    ///   - preferFastPath: Whether to prefer AVAssetExportSession.
     ///   - twoPass: Whether to use two-pass encoding.
     ///   - timeout: Maximum transcoding time in seconds.
     ///   - metadata: Custom metadata key-value pairs.
@@ -98,6 +108,7 @@ public struct TranscodingConfig: Sendable, Hashable {
         audioPassthrough: Bool = true,
         videoPassthrough: Bool = false,
         hardwareAcceleration: Bool = true,
+        preferFastPath: Bool = true,
         twoPass: Bool = false,
         timeout: Double = 300,
         metadata: [String: String] = [:]
@@ -112,6 +123,7 @@ public struct TranscodingConfig: Sendable, Hashable {
         self.audioPassthrough = audioPassthrough
         self.videoPassthrough = videoPassthrough
         self.hardwareAcceleration = hardwareAcceleration
+        self.preferFastPath = preferFastPath
         self.twoPass = twoPass
         self.timeout = timeout
         self.metadata = metadata

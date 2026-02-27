@@ -43,50 +43,18 @@
             config: TranscodingConfig,
             progress: (@Sendable (Double) -> Void)?
         ) async throws -> TranscodingResult {
-            let startTime = Date().timeIntervalSinceReferenceDate
-
             let sourceInfo = try await SourceAnalyzer.analyze(input)
             let preset: QualityPreset =
                 sourceInfo.hasVideo ? .p720 : .audioOnly
-            let effectivePreset = SourceAnalyzer.effectivePreset(
-                preset, source: sourceInfo
-            )
-
-            try prepareOutputDirectory(outputDirectory)
-
-            let tempURL = outputDirectory.appendingPathComponent(
-                "temp_\(effectivePreset.name).mp4"
-            )
-
             let job = TranscodeJob(
                 input: input,
-                output: tempURL,
-                preset: effectivePreset,
+                outputDirectory: outputDirectory,
+                preset: preset,
                 config: config,
                 sourceInfo: sourceInfo
             )
-            try await performTranscode(
+            return try await executeTranscode(
                 job: job, progress: progress
-            )
-
-            let segmentation = try segmentOutput(
-                tempURL: tempURL,
-                outputDirectory: outputDirectory,
-                config: config
-            )
-
-            let outputSize = fileSize(at: tempURL)
-            let elapsed = Date().timeIntervalSinceReferenceDate - startTime
-
-            try? FileManager.default.removeItem(at: tempURL)
-
-            return TranscodingResult(
-                preset: effectivePreset,
-                outputDirectory: outputDirectory,
-                segmentation: segmentation,
-                transcodingDuration: elapsed,
-                sourceDuration: sourceInfo.duration,
-                outputSize: outputSize
             )
         }
 
@@ -98,35 +66,38 @@
             config: TranscodingConfig,
             progress: (@Sendable (Double) -> Void)?
         ) async throws -> MultiVariantResult {
+            let sourceInfo = try await SourceAnalyzer.analyze(input)
             var results: [TranscodingResult] = []
-            let totalVariants = Double(variants.count)
+            let total = Double(variants.count)
 
-            for (index, preset) in variants.enumerated() {
-                let variantDir =
+            for (idx, preset) in variants.enumerated() {
+                let dir =
                     outputDirectory
                     .appendingPathComponent(preset.name)
-                let variantResult = try await transcode(
+                let job = TranscodeJob(
                     input: input,
-                    outputDirectory: variantDir,
+                    outputDirectory: dir,
+                    preset: preset,
                     config: config,
-                    progress: { variantProgress in
-                        let base = Double(index) / totalVariants
-                        let scaled =
-                            variantProgress / totalVariants
-                        progress?(base + scaled)
+                    sourceInfo: sourceInfo
+                )
+                let result = try await executeTranscode(
+                    job: job,
+                    progress: { p in
+                        let base = Double(idx) / total
+                        progress?(base + p / total)
                     }
                 )
-                results.append(variantResult)
+                results.append(result)
             }
 
-            let builder = VariantPlaylistBuilder()
-            let masterM3U8 = builder.buildMasterPlaylist(
-                variants: results, config: config
-            )
-
+            let m3u8 = VariantPlaylistBuilder()
+                .buildMasterPlaylist(
+                    variants: results, config: config
+                )
             return MultiVariantResult(
                 variants: results,
-                masterPlaylist: masterM3U8,
+                masterPlaylist: m3u8,
                 outputDirectory: outputDirectory
             )
         }
@@ -139,10 +110,99 @@
         /// Groups the parameters for a single transcode pass.
         struct TranscodeJob {
             let input: URL
-            let output: URL
+            let outputDirectory: URL
             let preset: QualityPreset
             let config: TranscodingConfig
             let sourceInfo: SourceAnalyzer.SourceInfo
+
+            var tempOutput: URL {
+                outputDirectory.appendingPathComponent(
+                    "temp_\(preset.name).mp4"
+                )
+            }
+        }
+
+        /// Internal transcode that accepts an explicit preset.
+        func executeTranscode(
+            job: TranscodeJob,
+            progress: (@Sendable (Double) -> Void)?
+        ) async throws -> TranscodingResult {
+            let startTime = CFAbsoluteTimeGetCurrent()
+            let effective = SourceAnalyzer.effectivePreset(
+                job.preset, source: job.sourceInfo
+            )
+            let effectiveJob = TranscodeJob(
+                input: job.input,
+                outputDirectory: job.outputDirectory,
+                preset: effective,
+                config: job.config,
+                sourceInfo: job.sourceInfo
+            )
+
+            try prepareOutputDirectory(
+                effectiveJob.outputDirectory
+            )
+
+            let encodeTime = try await encodeJob(
+                effectiveJob, progress: progress
+            )
+
+            let segStart = CFAbsoluteTimeGetCurrent()
+            let segmentation = try segmentOutput(
+                tempURL: effectiveJob.tempOutput,
+                outputDirectory: effectiveJob.outputDirectory,
+                config: effectiveJob.config
+            )
+            let segTime = CFAbsoluteTimeGetCurrent() - segStart
+
+            let outputSize = fileSize(
+                at: effectiveJob.tempOutput
+            )
+            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+            try? FileManager.default.removeItem(
+                at: effectiveJob.tempOutput
+            )
+
+            Self.logPerformance(
+                analysis: 0,
+                encode: encodeTime,
+                segmentation: segTime,
+                total: elapsed,
+                source: effectiveJob.sourceInfo
+            )
+
+            return TranscodingResult(
+                preset: effective,
+                outputDirectory: effectiveJob.outputDirectory,
+                segmentation: segmentation,
+                transcodingDuration: elapsed,
+                sourceDuration: effectiveJob.sourceInfo.duration,
+                outputSize: outputSize
+            )
+        }
+
+        /// Run encoding via fast path or standard pipeline.
+        ///
+        /// - Returns: Elapsed encoding time in seconds.
+        func encodeJob(
+            _ job: TranscodeJob,
+            progress: (@Sendable (Double) -> Void)?
+        ) async throws -> Double {
+            let start = CFAbsoluteTimeGetCurrent()
+            var usedFastPath = false
+            if job.config.preferFastPath {
+                if let ok = try await tryFastPath(
+                    job: job, progress: progress
+                ) {
+                    usedFastPath = ok
+                }
+            }
+            if !usedFastPath {
+                try await performTranscode(
+                    job: job, progress: progress
+                )
+            }
+            return CFAbsoluteTimeGetCurrent() - start
         }
 
         private func performTranscode(
@@ -211,7 +271,7 @@
                 asset: filtered.asset
             )
             let writer = try AVAssetWriter(
-                outputURL: job.output, fileType: .mp4
+                outputURL: job.tempOutput, fileType: .mp4
             )
 
             let pipeline = TranscodingSession.Pipeline(
@@ -250,161 +310,6 @@
             )
 
             try await session.execute(pipeline)
-        }
-    }
-
-    // MARK: - Track Filtering
-
-    extension AppleTranscoder {
-
-        /// Minimum dimension to qualify as real video.
-        ///
-        /// Cover art is typically 160x160 or 320x320. Any track
-        /// smaller than this is treated as a still image.
-        private static let minVideoDimension = 240
-
-        /// Find the first real video track, excluding still images.
-        ///
-        /// Cover art tracks in M4A files are reported as video but
-        /// have small dimensions (e.g. 160x160) and non-HLS codecs
-        /// like jpeg. Filter them out by requiring minimum size.
-        private func firstRealVideoTrack(
-            _ tracks: [AVAssetTrack]
-        ) async -> AVAssetTrack? {
-            for track in tracks where track.mediaType == .video {
-                let size =
-                    (try? await track.load(.naturalSize))
-                    ?? .zero
-                let isLargeEnough =
-                    Int(size.width) >= Self.minVideoDimension
-                    && Int(size.height) >= Self.minVideoDimension
-                guard isLargeEnough else { continue }
-                return track
-            }
-            return nil
-        }
-
-    }
-
-    // MARK: - Reader Setup
-
-    extension AppleTranscoder {
-
-        private func setupVideoReader(
-            track: AVAssetTrack?,
-            reader: AVAssetReader,
-            passthrough: Bool = false
-        ) -> AVAssetReaderTrackOutput? {
-            guard let track else { return nil }
-            let settings = EncodingSettings.videoReaderSettings(
-                passthrough: passthrough
-            )
-            let output = AVAssetReaderTrackOutput(
-                track: track, outputSettings: settings
-            )
-            output.alwaysCopiesSampleData = false
-            if reader.canAdd(output) {
-                reader.add(output)
-            }
-            return output
-        }
-
-        private func setupAudioReader(
-            track: AVAssetTrack?,
-            reader: AVAssetReader,
-            passthrough: Bool
-        ) -> AVAssetReaderTrackOutput? {
-            guard let track else { return nil }
-            let settings = EncodingSettings.audioReaderSettings(
-                passthrough: passthrough
-            )
-            let output = AVAssetReaderTrackOutput(
-                track: track, outputSettings: settings
-            )
-            output.alwaysCopiesSampleData = false
-            if reader.canAdd(output) {
-                reader.add(output)
-            }
-            return output
-        }
-    }
-
-    // MARK: - Writer Setup
-
-    extension AppleTranscoder {
-
-        private func setupVideoWriter(
-            preset: QualityPreset,
-            config: TranscodingConfig,
-            sourceResolution: Resolution?,
-            writer: AVAssetWriter,
-            sourceFormatHint: CMFormatDescription? = nil
-        ) -> AVAssetWriterInput? {
-            guard !preset.isAudioOnly else { return nil }
-
-            let input: AVAssetWriterInput
-            if config.videoPassthrough {
-                input = AVAssetWriterInput(
-                    mediaType: .video,
-                    outputSettings: nil,
-                    sourceFormatHint: sourceFormatHint
-                )
-            } else {
-                let settings = EncodingSettings.videoSettings(
-                    preset: preset,
-                    config: config,
-                    sourceResolution: sourceResolution
-                )
-                input = AVAssetWriterInput(
-                    mediaType: .video,
-                    outputSettings: settings
-                )
-            }
-            input.expectsMediaDataInRealTime = false
-            if writer.canAdd(input) {
-                writer.add(input)
-            }
-            return input
-        }
-
-        private func setupAudioWriter(
-            track: AVAssetTrack?,
-            preset: QualityPreset,
-            config: TranscodingConfig,
-            writer: AVAssetWriter,
-            sourceFormatHint: CMFormatDescription? = nil,
-            sourceInfo: SourceAnalyzer.SourceInfo? = nil
-        ) -> AVAssetWriterInput? {
-            guard track != nil else { return nil }
-
-            var settings = EncodingSettings.audioSettings(
-                preset: preset, config: config
-            )
-
-            if var s = settings, let info = sourceInfo {
-                info.audioChannels.map { s[AVNumberOfChannelsKey] = $0 }
-                info.audioSampleRate.map { s[AVSampleRateKey] = Int($0) }
-                settings = s
-            }
-
-            let input: AVAssetWriterInput
-            if let settings {
-                input = AVAssetWriterInput(
-                    mediaType: .audio,
-                    outputSettings: settings
-                )
-            } else {
-                input = AVAssetWriterInput(
-                    mediaType: .audio,
-                    outputSettings: nil,
-                    sourceFormatHint: sourceFormatHint
-                )
-            }
-            input.expectsMediaDataInRealTime = false
-            if writer.canAdd(input) {
-                writer.add(input)
-            }
-            return input
         }
     }
 

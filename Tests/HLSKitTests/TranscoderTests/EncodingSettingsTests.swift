@@ -4,6 +4,7 @@
 #if canImport(AVFoundation)
     import AVFoundation
     import Testing
+    import VideoToolbox
 
     @testable import HLSKit
 
@@ -285,13 +286,39 @@
             )
         }
 
-        @Test("Profile level: non-H.264 codec defaults to high auto")
-        func profileNonH264() {
+        @Test("Profile level: HEVC high maps to Main10 auto")
+        func profileHEVCHigh() {
             let result = EncodingSettings.avProfileLevel(
                 profile: .high, level: "4.0", codec: .h265
             )
             #expect(
-                result == AVVideoProfileLevelH264HighAutoLevel
+                result
+                    == kVTProfileLevel_HEVC_Main10_AutoLevel
+                    as String
+            )
+        }
+
+        @Test("Profile level: HEVC main maps to Main auto")
+        func profileHEVCMain() {
+            let result = EncodingSettings.avProfileLevel(
+                profile: .main, level: nil, codec: .h265
+            )
+            #expect(
+                result
+                    == kVTProfileLevel_HEVC_Main_AutoLevel
+                    as String
+            )
+        }
+
+        @Test("Profile level: HEVC nil profile maps to Main auto")
+        func profileHEVCDefault() {
+            let result = EncodingSettings.avProfileLevel(
+                profile: nil, level: nil, codec: .h265
+            )
+            #expect(
+                result
+                    == kVTProfileLevel_HEVC_Main_AutoLevel
+                    as String
             )
         }
 

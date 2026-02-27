@@ -103,6 +103,50 @@
         }
     }
 
+    // MARK: - Performance Logging
+
+    extension AppleTranscoder {
+
+        static func logPerformance(
+            analysis: Double,
+            encode: Double,
+            segmentation: Double,
+            total: Double,
+            source: SourceAnalyzer.SourceInfo
+        ) {
+            #if DEBUG
+                let fmt = { String(format: "%.2f", $0) }
+                let resFmt =
+                    source.videoResolution.map {
+                        "\($0.width)x\($0.height)"
+                    } ?? "audio-only"
+                let speed =
+                    source.duration > 0
+                    ? String(
+                        format: "%.1fx",
+                        source.duration / total
+                    )
+                    : "N/A"
+                print(
+                    "[HLSKit][Perf] Source: \(resFmt),"
+                        + " \(fmt(source.duration))s duration"
+                )
+                print(
+                    "[HLSKit][Perf] Analysis: \(fmt(analysis))s"
+                )
+                print("[HLSKit][Perf] Encode: \(fmt(encode))s")
+                print(
+                    "[HLSKit][Perf] Segmentation:"
+                        + " \(fmt(segmentation))s"
+                )
+                print(
+                    "[HLSKit][Perf] Total: \(fmt(total))s"
+                        + " (\(speed) realtime)"
+                )
+            #endif
+        }
+    }
+
     // MARK: - Helpers
 
     extension AppleTranscoder {
