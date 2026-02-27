@@ -162,6 +162,7 @@
 
         /// Determine effective preset, preventing upscaling.
         ///
+        /// If the source has no video, forces audio-only preset.
         /// If the preset resolution exceeds the source resolution,
         /// the source resolution is used instead (don't upscale).
         ///
@@ -173,6 +174,10 @@
             _ preset: QualityPreset,
             source: SourceInfo
         ) -> QualityPreset {
+            if !source.hasVideo, !preset.isAudioOnly {
+                return .audioOnly
+            }
+
             guard let presetRes = preset.resolution,
                 let sourceRes = source.videoResolution
             else {
