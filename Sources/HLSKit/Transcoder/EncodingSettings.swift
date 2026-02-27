@@ -99,9 +99,17 @@
 
         /// Build video reader output settings (decode to raw pixels).
         ///
-        /// - Returns: Video output settings for `AVAssetReaderTrackOutput`.
-        static func videoReaderSettings() -> [String: Any] {
-            [
+        /// Returns `nil` for passthrough mode, which causes
+        /// `AVAssetReaderTrackOutput` to output compressed samples.
+        ///
+        /// - Parameter passthrough: Whether video passthrough is enabled.
+        /// - Returns: Video output settings, or `nil` for passthrough.
+        static func videoReaderSettings(
+            passthrough: Bool = false
+        ) -> [String: Any]? {
+            guard !passthrough else { return nil }
+
+            return [
                 kCVPixelBufferPixelFormatTypeKey as String:
                     kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
             ]

@@ -1,16 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Atelier Socle SAS
 
-#if canImport(AudioToolbox)
+#if canImport(AVFoundation)
 
-    import AudioToolbox
-    import Foundation
+    @preconcurrency import AVFoundation
+    import os
 
-    /// Real-time audio encoder using Apple AudioToolbox.
+    /// Real-time audio encoder using Apple's `AVAudioConverter`.
     ///
-    /// Wraps `AudioConverterRef` to encode PCM audio (Int16 or Float32) into AAC.
-    /// Accumulates PCM samples into 1024-sample frames as required by AAC, and
-    /// tracks encoder delay for accurate timestamps.
+    /// Encodes PCM audio (Int16 interleaved) into AAC. Accumulates PCM
+    /// samples into 1024-sample frames as required by AAC, and tracks
+    /// encoder delay for accurate timestamps.
+    ///
+    /// All CoreAudio operations execute on a dedicated serial
+    /// `DispatchQueue`, avoiding the `dispatch_assert_queue` crash that
+    /// occurs when CoreAudio internal calls run on the Swift cooperative
+    /// thread pool.
     ///
     /// ## Lifecycle
     /// ```swift
@@ -21,13 +26,25 @@
     /// await encoder.teardown()
     /// ```
     ///
-    /// - Important: This encoder is only available on Apple platforms where
-    ///   `AudioToolbox` is available.
-    public actor AudioEncoder: LiveEncoder {
+    /// - Important: This encoder is only available on Apple platforms
+    ///   where `AVFoundation` is available.
+    ///
+    /// - Note: `@unchecked Sendable` — thread safety guaranteed by
+    ///   routing all mutable state through the serial `audioQueue`.
+    public final class AudioEncoder: LiveEncoder, @unchecked Sendable {
 
-        // MARK: - State
+        // MARK: - Queue
 
-        private var converter: AudioConverterRef?
+        private let audioQueue = DispatchQueue(
+            label: "com.atelier-socle.hlskit.audio-encoder",
+            qos: .userInteractive
+        )
+
+        // MARK: - State (accessed only on audioQueue)
+
+        private var converter: AVAudioConverter?
+        private var inputFormat: AVAudioFormat?
+        private var outputFormat: AVAudioFormat?
         private var configuration: LiveEncoderConfiguration?
         private var pcmBuffer: Data = Data()
         private var currentTimestamp: Double = 0.0
@@ -44,24 +61,84 @@
 
         public func configure(
             _ configuration: LiveEncoderConfiguration
+        ) async throws {
+            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                self.audioQueue.async {
+                    do {
+                        try self.performConfigure(configuration)
+                        cont.resume()
+                    } catch {
+                        cont.resume(throwing: error)
+                    }
+                }
+            }
+        }
+
+        public func encode(
+            _ buffer: RawMediaBuffer
+        ) async throws -> [EncodedFrame] {
+            try await withCheckedThrowingContinuation { cont in
+                self.audioQueue.async {
+                    do {
+                        let frames = try self.performEncode(buffer)
+                        cont.resume(returning: frames)
+                    } catch {
+                        cont.resume(throwing: error)
+                    }
+                }
+            }
+        }
+
+        public func flush() async throws -> [EncodedFrame] {
+            try await withCheckedThrowingContinuation { cont in
+                self.audioQueue.async {
+                    do {
+                        let frames = try self.performFlush()
+                        cont.resume(returning: frames)
+                    } catch {
+                        cont.resume(throwing: error)
+                    }
+                }
+            }
+        }
+
+        public func teardown() async {
+            await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+                self.audioQueue.async {
+                    self.performTeardown()
+                    cont.resume()
+                }
+            }
+        }
+    }
+
+    // MARK: - Private Implementation (always on audioQueue)
+
+    extension AudioEncoder {
+
+        private func performConfigure(
+            _ configuration: LiveEncoderConfiguration
         ) throws {
             guard !isTornDown else {
                 throw LiveEncoderError.tornDown
             }
             try validateConfiguration(configuration)
             disposeConverter()
-            let ref = try createConverter(for: configuration)
-            configureBitrate(ref, bitrate: configuration.bitrate)
-            applyConfiguration(ref, configuration)
+            try setupConverter(for: configuration)
+            self.configuration = configuration
+            self.pcmBuffer = Data()
+            self.currentTimestamp = 0.0
+            self.framesEncoded = 0
         }
 
-        public func encode(
+        private func performEncode(
             _ buffer: RawMediaBuffer
         ) throws -> [EncodedFrame] {
             guard !isTornDown else {
                 throw LiveEncoderError.tornDown
             }
-            guard let config = configuration, converter != nil else {
+            guard let config = configuration, converter != nil
+            else {
                 throw LiveEncoderError.notConfigured
             }
             try validateBuffer(buffer, against: config)
@@ -70,11 +147,12 @@
             return try drainCompleteFrames(config: config)
         }
 
-        public func flush() throws -> [EncodedFrame] {
+        private func performFlush() throws -> [EncodedFrame] {
             guard !isTornDown else {
                 throw LiveEncoderError.tornDown
             }
-            guard let config = configuration, converter != nil else {
+            guard let config = configuration, converter != nil
+            else {
                 throw LiveEncoderError.notConfigured
             }
 
@@ -83,12 +161,15 @@
             if !pcmBuffer.isEmpty {
                 let bytesPerAACFrame =
                     samplesPerFrame * 2 * config.channels
-                let padding = bytesPerAACFrame - pcmBuffer.count
+                let padding =
+                    bytesPerAACFrame - pcmBuffer.count
                 pcmBuffer.append(
                     Data(repeating: 0, count: padding)
                 )
 
-                if let encoded = try encodeFrame(config: config) {
+                if let encoded = try encodeFrame(
+                    config: config
+                ) {
                     frames.append(encoded)
                 }
                 pcmBuffer = Data()
@@ -97,7 +178,7 @@
             return frames
         }
 
-        public func teardown() {
+        private func performTeardown() {
             disposeConverter()
             configuration = nil
             pcmBuffer = Data()
@@ -120,89 +201,77 @@
             }
             guard !configuration.passthrough else {
                 throw LiveEncoderError.unsupportedConfiguration(
-                    "AudioEncoder does not support passthrough mode"
+                    "AudioEncoder does not support "
+                        + "passthrough mode"
                 )
             }
         }
 
-        private func createConverter(
-            for configuration: LiveEncoderConfiguration
-        ) throws -> AudioConverterRef {
-            var inputASBD = AudioStreamBasicDescription(
-                mSampleRate: configuration.sampleRate,
-                mFormatID: kAudioFormatLinearPCM,
-                mFormatFlags:
-                    kAudioFormatFlagIsSignedInteger
-                    | kAudioFormatFlagIsPacked,
-                mBytesPerPacket: UInt32(
-                    2 * configuration.channels
-                ),
-                mFramesPerPacket: 1,
-                mBytesPerFrame: UInt32(
-                    2 * configuration.channels
-                ),
-                mChannelsPerFrame: UInt32(
-                    configuration.channels
-                ),
-                mBitsPerChannel: 16,
-                mReserved: 0
-            )
+        /// Creates an `AVAudioConverter` for PCM Int16 → AAC
+        /// and assigns `converter`, `inputFormat`, `outputFormat`.
+        private func setupConverter(
+            for config: LiveEncoderConfiguration
+        ) throws {
+            guard
+                let inFmt = AVAudioFormat(
+                    commonFormat: .pcmFormatInt16,
+                    sampleRate: config.sampleRate,
+                    channels: AVAudioChannelCount(
+                        config.channels
+                    ),
+                    interleaved: true
+                )
+            else {
+                throw LiveEncoderError.unsupportedConfiguration(
+                    "Cannot create PCM input format"
+                )
+            }
 
-            var outputASBD = AudioStreamBasicDescription(
-                mSampleRate: configuration.sampleRate,
+            var outputDesc = AudioStreamBasicDescription(
+                mSampleRate: config.sampleRate,
                 mFormatID: kAudioFormatMPEG4AAC,
                 mFormatFlags: 0,
                 mBytesPerPacket: 0,
                 mFramesPerPacket: UInt32(samplesPerFrame),
                 mBytesPerFrame: 0,
                 mChannelsPerFrame: UInt32(
-                    configuration.channels
+                    config.channels
                 ),
                 mBitsPerChannel: 0,
                 mReserved: 0
             )
 
-            var ref: AudioConverterRef?
-            let status = AudioConverterNew(
-                &inputASBD, &outputASBD, &ref
-            )
-
-            guard status == noErr, let converter = ref else {
+            guard
+                let outFmt = AVAudioFormat(
+                    streamDescription: &outputDesc
+                )
+            else {
                 throw LiveEncoderError.unsupportedConfiguration(
-                    "AudioConverterNew failed: \(status)"
+                    "Cannot create AAC output format"
                 )
             }
-            return converter
-        }
 
-        private func configureBitrate(
-            _ ref: AudioConverterRef, bitrate: Int
-        ) {
-            var value = UInt32(bitrate)
-            AudioConverterSetProperty(
-                ref,
-                kAudioConverterEncodeBitRate,
-                UInt32(MemoryLayout<UInt32>.size),
-                &value
-            )
-        }
+            guard
+                let conv = AVAudioConverter(
+                    from: inFmt, to: outFmt
+                )
+            else {
+                throw LiveEncoderError.unsupportedConfiguration(
+                    "AVAudioConverter creation failed "
+                        + "for PCM → AAC"
+                )
+            }
 
-        private func applyConfiguration(
-            _ ref: AudioConverterRef,
-            _ configuration: LiveEncoderConfiguration
-        ) {
-            self.converter = ref
-            self.configuration = configuration
-            self.pcmBuffer = Data()
-            self.currentTimestamp = 0.0
-            self.framesEncoded = 0
+            conv.bitRate = config.bitrate
+            self.inputFormat = inFmt
+            self.outputFormat = outFmt
+            self.converter = conv
         }
 
         private func disposeConverter() {
-            if let ref = converter {
-                AudioConverterDispose(ref)
-                converter = nil
-            }
+            converter = nil
+            inputFormat = nil
+            outputFormat = nil
         }
     }
 
@@ -232,8 +301,8 @@
                 }
                 guard channels == config.channels else {
                     throw LiveEncoderError.formatMismatch(
-                        "Expected \(config.channels) channels, "
-                            + "got \(channels)"
+                        "Expected \(config.channels) "
+                            + "channels, got \(channels)"
                     )
                 }
             case .video:
@@ -256,7 +325,9 @@
             var frames: [EncodedFrame] = []
 
             while pcmBuffer.count >= bytesPerAACFrame {
-                if let encoded = try encodeFrame(config: config) {
+                if let encoded = try encodeFrame(
+                    config: config
+                ) {
                     frames.append(encoded)
                 }
             }
@@ -264,30 +335,116 @@
             return frames
         }
 
+        /// Encodes one 1024-sample AAC frame using
+        /// `AVAudioConverter`.
         private func encodeFrame(
             config: LiveEncoderConfiguration
         ) throws -> EncodedFrame? {
-            guard let ref = converter else {
+            guard let converter, let inputFormat,
+                let outputFormat
+            else {
                 throw LiveEncoderError.notConfigured
             }
 
             let bytesPerAACFrame =
                 samplesPerFrame * 2 * config.channels
-            var frameData = Data(
+            let frameData = Data(
                 pcmBuffer.prefix(bytesPerAACFrame)
             )
             pcmBuffer.removeFirst(bytesPerAACFrame)
 
-            var bridge = AudioConverterBridge(
-                converter: ref,
-                channels: config.channels
-            )
-            guard let data = bridge.convert(input: &frameData)
+            // Build AVAudioPCMBuffer from raw Int16 data
+            guard
+                let inputBuffer = AVAudioPCMBuffer(
+                    pcmFormat: inputFormat,
+                    frameCapacity: AVAudioFrameCount(
+                        samplesPerFrame
+                    )
+                )
             else {
                 return nil
             }
+            inputBuffer.frameLength = AVAudioFrameCount(
+                samplesPerFrame
+            )
 
-            return makeEncodedFrame(data: data, config: config)
+            frameData.withUnsafeBytes { raw in
+                guard let src = raw.baseAddress,
+                    let dst = inputBuffer.int16ChannelData?[0]
+                else { return }
+                memcpy(dst, src, frameData.count)
+            }
+
+            // Encode via AVAudioConverter
+            let data = try convertBuffer(
+                inputBuffer,
+                converter: converter,
+                outputFormat: outputFormat
+            )
+            guard let data else { return nil }
+
+            return makeEncodedFrame(
+                data: data, config: config
+            )
+        }
+
+        /// Runs the AVAudioConverter conversion for one buffer.
+        private func convertBuffer(
+            _ input: AVAudioPCMBuffer,
+            converter: AVAudioConverter,
+            outputFormat: AVAudioFormat
+        ) throws -> Data? {
+            let maxSize = max(
+                converter.maximumOutputPacketSize, 8192
+            )
+            let outputBuffer = AVAudioCompressedBuffer(
+                format: outputFormat,
+                packetCapacity: 1,
+                maximumPacketSize: maxSize
+            )
+
+            var error: NSError?
+            let pending = OSAllocatedUnfairLock(
+                initialState: true
+            )
+
+            let status = converter.convert(
+                to: outputBuffer, error: &error
+            ) { _, outStatus in
+                let provide = pending.withLock {
+                    let val = $0
+                    $0 = false
+                    return val
+                }
+                if provide {
+                    outStatus.pointee = .haveData
+                    return input
+                }
+                outStatus.pointee = .noDataNow
+                return nil
+            }
+
+            if let error {
+                throw LiveEncoderError.encodingFailed(
+                    "AVAudioConverter error: "
+                        + error.localizedDescription
+                )
+            }
+
+            guard status != .error else {
+                throw LiveEncoderError.encodingFailed(
+                    "AVAudioConverter returned error status"
+                )
+            }
+
+            guard outputBuffer.byteLength > 0 else {
+                return nil
+            }
+
+            return Data(
+                bytes: outputBuffer.data,
+                count: Int(outputBuffer.byteLength)
+            )
         }
 
         private func makeEncodedFrame(

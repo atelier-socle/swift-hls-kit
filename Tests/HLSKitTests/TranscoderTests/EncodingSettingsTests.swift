@@ -166,13 +166,21 @@
         func videoReaderSettings() {
             let settings = EncodingSettings.videoReaderSettings()
             let format =
-                settings[
+                settings?[
                     kCVPixelBufferPixelFormatTypeKey as String
                 ] as? OSType
             #expect(
                 format
                     == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
             )
+        }
+
+        @Test("Video reader settings passthrough returns nil")
+        func videoReaderSettingsPassthrough() {
+            let settings = EncodingSettings.videoReaderSettings(
+                passthrough: true
+            )
+            #expect(settings == nil)
         }
 
         @Test("Audio reader settings decode to PCM")

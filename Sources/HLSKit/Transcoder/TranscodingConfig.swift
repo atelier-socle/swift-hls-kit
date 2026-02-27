@@ -50,6 +50,12 @@ public struct TranscodingConfig: Sendable, Hashable {
     /// Default: `true`
     public var audioPassthrough: Bool
 
+    /// Whether to pass through video without re-encoding.
+    /// When true, video is copied from source without decoding or
+    /// re-encoding — near-instant for any file size.
+    /// Default: `false`
+    public var videoPassthrough: Bool
+
     /// Whether to enable hardware acceleration.
     /// Default: `true`
     public var hardwareAcceleration: Bool
@@ -76,6 +82,7 @@ public struct TranscodingConfig: Sendable, Hashable {
     ///   - playlistType: HLS playlist type.
     ///   - includeAudio: Whether to include audio.
     ///   - audioPassthrough: Whether to pass through audio.
+    ///   - videoPassthrough: Whether to pass through video.
     ///   - hardwareAcceleration: Whether to use HW acceleration.
     ///   - twoPass: Whether to use two-pass encoding.
     ///   - timeout: Maximum transcoding time in seconds.
@@ -89,6 +96,7 @@ public struct TranscodingConfig: Sendable, Hashable {
         playlistType: PlaylistType = .vod,
         includeAudio: Bool = true,
         audioPassthrough: Bool = true,
+        videoPassthrough: Bool = false,
         hardwareAcceleration: Bool = true,
         twoPass: Bool = false,
         timeout: Double = 300,
@@ -102,6 +110,7 @@ public struct TranscodingConfig: Sendable, Hashable {
         self.playlistType = playlistType
         self.includeAudio = includeAudio
         self.audioPassthrough = audioPassthrough
+        self.videoPassthrough = videoPassthrough
         self.hardwareAcceleration = hardwareAcceleration
         self.twoPass = twoPass
         self.timeout = timeout

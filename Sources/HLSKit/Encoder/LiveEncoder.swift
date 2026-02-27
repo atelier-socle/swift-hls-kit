@@ -14,8 +14,8 @@
 /// 5. Call ``teardown()`` to release resources.
 ///
 /// ## Concurrency
-/// Implementations are actors, ensuring serialized access. All methods are
-/// async to support actor isolation.
+/// Implementations ensure serialized access (via actors or dedicated
+/// dispatch queues). All methods are async.
 ///
 /// ## Usage
 /// ```swift

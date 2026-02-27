@@ -198,6 +198,8 @@
 
             let audioFormatHint = try await audioTrack?
                 .load(.formatDescriptions).first
+            let videoFormatHint = try await videoTrack?
+                .load(.formatDescriptions).first
 
             let filtered = try filteredComposition(
                 duration: duration,
@@ -217,7 +219,8 @@
                 writer: writer,
                 videoReaderOutput: setupVideoReader(
                     track: filtered.videoTrack,
-                    reader: reader
+                    reader: reader,
+                    passthrough: job.config.videoPassthrough
                 ),
                 audioReaderOutput: setupAudioReader(
                     track: filtered.audioTrack,
@@ -228,7 +231,8 @@
                     preset: job.preset,
                     config: job.config,
                     sourceResolution: job.sourceInfo.videoResolution,
-                    writer: writer
+                    writer: writer,
+                    sourceFormatHint: videoFormatHint
                 ),
                 audioWriterInput: setupAudioWriter(
                     track: filtered.audioTrack,
@@ -288,10 +292,13 @@
 
         private func setupVideoReader(
             track: AVAssetTrack?,
-            reader: AVAssetReader
+            reader: AVAssetReader,
+            passthrough: Bool = false
         ) -> AVAssetReaderTrackOutput? {
             guard let track else { return nil }
-            let settings = EncodingSettings.videoReaderSettings()
+            let settings = EncodingSettings.videoReaderSettings(
+                passthrough: passthrough
+            )
             let output = AVAssetReaderTrackOutput(
                 track: track, outputSettings: settings
             )
@@ -330,18 +337,29 @@
             preset: QualityPreset,
             config: TranscodingConfig,
             sourceResolution: Resolution?,
-            writer: AVAssetWriter
+            writer: AVAssetWriter,
+            sourceFormatHint: CMFormatDescription? = nil
         ) -> AVAssetWriterInput? {
             guard !preset.isAudioOnly else { return nil }
-            let settings = EncodingSettings.videoSettings(
-                preset: preset,
-                config: config,
-                sourceResolution: sourceResolution
-            )
-            let input = AVAssetWriterInput(
-                mediaType: .video,
-                outputSettings: settings
-            )
+
+            let input: AVAssetWriterInput
+            if config.videoPassthrough {
+                input = AVAssetWriterInput(
+                    mediaType: .video,
+                    outputSettings: nil,
+                    sourceFormatHint: sourceFormatHint
+                )
+            } else {
+                let settings = EncodingSettings.videoSettings(
+                    preset: preset,
+                    config: config,
+                    sourceResolution: sourceResolution
+                )
+                input = AVAssetWriterInput(
+                    mediaType: .video,
+                    outputSettings: settings
+                )
+            }
             input.expectsMediaDataInRealTime = false
             if writer.canAdd(input) {
                 writer.add(input)
