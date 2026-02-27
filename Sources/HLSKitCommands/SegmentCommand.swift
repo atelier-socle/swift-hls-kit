@@ -100,33 +100,49 @@ struct SegmentCommand: AsyncParsableCommand {
         )
 
         let engine = HLSEngine()
-        let result = try await engine.segmentToDirectory(
-            url: inputURL,
-            outputDirectory: outputURL,
-            config: config
-        )
+        #if canImport(AVFoundation)
+            let result = try await engine.segmentToDirectory(
+                url: inputURL,
+                outputDirectory: outputURL,
+                config: config
+            )
+        #else
+            let data = try Data(contentsOf: inputURL)
+            let result = try engine.segmentToDirectory(
+                data: data,
+                outputDirectory: outputURL,
+                config: config
+            )
+        #endif
 
         if !quiet {
-            let count = result.mediaSegments.count
-            let isTTY = isatty(STDERR_FILENO) != 0
-            if isTTY {
-                var stderr = FileHandleOutputStream(
-                    FileHandle.standardError
-                )
-                print(
-                    "\r  Segmented: \(count) segments",
-                    terminator: "", to: &stderr
-                )
-                print(
-                    "\r\u{1B}[2K", terminator: "",
-                    to: &stderr
-                )
-            }
-            let summary = formatter.formatSegmentResult(
-                result, outputDirectory: output
-            )
-            print(summary)
+            printResult(result, formatter: formatter)
         }
+    }
+
+    private func printResult(
+        _ result: SegmentationResult,
+        formatter: OutputFormatter
+    ) {
+        let count = result.mediaSegments.count
+        let isTTY = isatty(STDERR_FILENO) != 0
+        if isTTY {
+            var stderr = FileHandleOutputStream(
+                FileHandle.standardError
+            )
+            print(
+                "\r  Segmented: \(count) segments",
+                terminator: "", to: &stderr
+            )
+            print(
+                "\r\u{1B}[2K", terminator: "",
+                to: &stderr
+            )
+        }
+        let summary = formatter.formatSegmentResult(
+            result, outputDirectory: output
+        )
+        print(summary)
     }
 
     private func parseContainerFormat(
