@@ -68,12 +68,14 @@ struct LivePipelineComponentsTests {
 
     // MARK: - EncodingComponents
 
-    @Test("EncodingComponents: stores encoder")
-    func encodingComponents() async {
-        let encoder = AudioEncoder()
-        let encoding = EncodingComponents(encoder: encoder)
-        #expect(encoding.encoder is AudioEncoder)
-    }
+    #if canImport(AVFoundation)
+        @Test("EncodingComponents: stores encoder")
+        func encodingComponents() async {
+            let encoder = AudioEncoder()
+            let encoding = EncodingComponents(encoder: encoder)
+            #expect(encoding.encoder is AudioEncoder)
+        }
+    #endif
 
     // MARK: - SegmentationComponents
 
@@ -193,71 +195,73 @@ struct LivePipelineComponentsTests {
 
     // MARK: - Full Podcast Components
 
-    @Test("Full podcast: input + encoding + segmentation + playlist + audio")
-    func fullPodcastComponents() async {
-        let components = LivePipelineComponents(
-            input: InputComponents(source: MockMediaSource()),
-            encoding: EncodingComponents(encoder: AudioEncoder()),
-            segmentation: SegmentationComponents(
-                segmenter: IncrementalSegmenter()
-            ),
-            playlist: PlaylistComponents(
-                manager: SlidingWindowPlaylist()
-            ),
-            audio: AudioComponents(
-                loudnessMeter: LoudnessMeter(sampleRate: 48000, channels: 2),
-                normalizer: AudioNormalizer(targetLoudness: -16.0)
+    #if canImport(AVFoundation)
+        @Test("Full podcast: input + encoding + segmentation + playlist + audio")
+        func fullPodcastComponents() async {
+            let components = LivePipelineComponents(
+                input: InputComponents(source: MockMediaSource()),
+                encoding: EncodingComponents(encoder: AudioEncoder()),
+                segmentation: SegmentationComponents(
+                    segmenter: IncrementalSegmenter()
+                ),
+                playlist: PlaylistComponents(
+                    manager: SlidingWindowPlaylist()
+                ),
+                audio: AudioComponents(
+                    loudnessMeter: LoudnessMeter(sampleRate: 48000, channels: 2),
+                    normalizer: AudioNormalizer(targetLoudness: -16.0)
+                )
             )
-        )
-        #expect(components.input != nil)
-        #expect(components.encoding != nil)
-        #expect(components.segmentation != nil)
-        #expect(components.playlist != nil)
-        #expect(components.lowLatency == nil)
-        #expect(components.push == nil)
-        #expect(components.metadata == nil)
-        #expect(components.recording == nil)
-        #expect(components.audio != nil)
-    }
+            #expect(components.input != nil)
+            #expect(components.encoding != nil)
+            #expect(components.segmentation != nil)
+            #expect(components.playlist != nil)
+            #expect(components.lowLatency == nil)
+            #expect(components.push == nil)
+            #expect(components.metadata == nil)
+            #expect(components.recording == nil)
+            #expect(components.audio != nil)
+        }
 
-    // MARK: - Full Video LL-HLS Components
+        // MARK: - Full Video LL-HLS Components
 
-    @Test("Full video LL-HLS: all 9 groups populated")
-    func fullVideoLLHLSComponents() async {
-        let llhls = LLHLSManager()
-        let handler = BlockingPlaylistHandler(manager: llhls)
-        let storage = MockComponentStorage()
-        let components = LivePipelineComponents(
-            input: InputComponents(source: MockMediaSource()),
-            encoding: EncodingComponents(encoder: AudioEncoder()),
-            segmentation: SegmentationComponents(
-                segmenter: IncrementalSegmenter()
-            ),
-            playlist: PlaylistComponents(
-                manager: SlidingWindowPlaylist()
-            ),
-            lowLatency: LowLatencyComponents(
-                manager: llhls,
-                blockingHandler: handler
-            ),
-            push: PushComponents(destinations: []),
-            metadata: MetadataComponents(injector: LiveMetadataInjector()),
-            recording: RecordingComponents(
-                recorder: SimultaneousRecorder(storage: storage),
-                storage: storage
-            ),
-            audio: AudioComponents(levelMeter: LevelMeter())
-        )
-        #expect(components.input != nil)
-        #expect(components.encoding != nil)
-        #expect(components.segmentation != nil)
-        #expect(components.playlist != nil)
-        #expect(components.lowLatency != nil)
-        #expect(components.push != nil)
-        #expect(components.metadata != nil)
-        #expect(components.recording != nil)
-        #expect(components.audio != nil)
-    }
+        @Test("Full video LL-HLS: all 9 groups populated")
+        func fullVideoLLHLSComponents() async {
+            let llhls = LLHLSManager()
+            let handler = BlockingPlaylistHandler(manager: llhls)
+            let storage = MockComponentStorage()
+            let components = LivePipelineComponents(
+                input: InputComponents(source: MockMediaSource()),
+                encoding: EncodingComponents(encoder: AudioEncoder()),
+                segmentation: SegmentationComponents(
+                    segmenter: IncrementalSegmenter()
+                ),
+                playlist: PlaylistComponents(
+                    manager: SlidingWindowPlaylist()
+                ),
+                lowLatency: LowLatencyComponents(
+                    manager: llhls,
+                    blockingHandler: handler
+                ),
+                push: PushComponents(destinations: []),
+                metadata: MetadataComponents(injector: LiveMetadataInjector()),
+                recording: RecordingComponents(
+                    recorder: SimultaneousRecorder(storage: storage),
+                    storage: storage
+                ),
+                audio: AudioComponents(levelMeter: LevelMeter())
+            )
+            #expect(components.input != nil)
+            #expect(components.encoding != nil)
+            #expect(components.segmentation != nil)
+            #expect(components.playlist != nil)
+            #expect(components.lowLatency != nil)
+            #expect(components.push != nil)
+            #expect(components.metadata != nil)
+            #expect(components.recording != nil)
+            #expect(components.audio != nil)
+        }
+    #endif
 
     // MARK: - AudioProcessingSettings
 

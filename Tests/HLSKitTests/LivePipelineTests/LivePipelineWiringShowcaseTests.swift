@@ -11,116 +11,118 @@ struct LivePipelineWiringShowcaseTests {
 
     // MARK: - Podcast Pipeline
 
-    @Test("Podcast: input + encoding + segmentation + playlist + audio")
-    func podcastPipeline() async throws {
-        let pipeline = LivePipeline()
-        let components = LivePipelineComponents(
-            input: InputComponents(source: MockShowcaseSource()),
-            encoding: EncodingComponents(encoder: AudioEncoder()),
-            segmentation: SegmentationComponents(
-                segmenter: IncrementalSegmenter()
-            ),
-            playlist: PlaylistComponents(
-                manager: SlidingWindowPlaylist()
-            ),
-            audio: AudioComponents(
-                loudnessMeter: LoudnessMeter(sampleRate: 48000, channels: 2),
-                normalizer: AudioNormalizer(targetLoudness: -16.0),
-                levelMeter: LevelMeter()
+    #if canImport(AVFoundation)
+        @Test("Podcast: input + encoding + segmentation + playlist + audio")
+        func podcastPipeline() async throws {
+            let pipeline = LivePipeline()
+            let components = LivePipelineComponents(
+                input: InputComponents(source: MockShowcaseSource()),
+                encoding: EncodingComponents(encoder: AudioEncoder()),
+                segmentation: SegmentationComponents(
+                    segmenter: IncrementalSegmenter()
+                ),
+                playlist: PlaylistComponents(
+                    manager: SlidingWindowPlaylist()
+                ),
+                audio: AudioComponents(
+                    loudnessMeter: LoudnessMeter(sampleRate: 48000, channels: 2),
+                    normalizer: AudioNormalizer(targetLoudness: -16.0),
+                    levelMeter: LevelMeter()
+                )
             )
-        )
-        try await pipeline.start(
-            configuration: .podcastLive,
-            components: components
-        )
-        let has = await pipeline.hasComponents
-        #expect(has == true)
-        let current = await pipeline.currentComponents
-        #expect(current?.input != nil)
-        #expect(current?.encoding != nil)
-        #expect(current?.segmentation != nil)
-        #expect(current?.playlist != nil)
-        #expect(current?.audio != nil)
-        #expect(current?.audio?.loudnessMeter != nil)
-        #expect(current?.audio?.normalizer != nil)
-        #expect(current?.audio?.levelMeter != nil)
-        let hasLevel = await pipeline.hasLevelMeter
-        #expect(hasLevel == true)
-        try await pipeline.stop()
-    }
-
-    // MARK: - Video Live Pipeline
-
-    @Test("Video live: input + encoding + segmentation + playlist + push")
-    func videoLivePipeline() async throws {
-        let pipeline = LivePipeline()
-        let components = LivePipelineComponents(
-            input: InputComponents(source: MockShowcaseSource()),
-            encoding: EncodingComponents(encoder: AudioEncoder()),
-            segmentation: SegmentationComponents(
-                segmenter: IncrementalSegmenter()
-            ),
-            playlist: PlaylistComponents(
-                manager: SlidingWindowPlaylist()
-            ),
-            push: PushComponents(
-                destinations: [],
-                multiDestinationPusher: MultiDestinationPusher()
+            try await pipeline.start(
+                configuration: .podcastLive,
+                components: components
             )
-        )
-        try await pipeline.start(
-            configuration: .videoLive,
-            components: components
-        )
-        let current = await pipeline.currentComponents
-        #expect(current?.push != nil)
-        #expect(current?.push?.multiDestinationPusher != nil)
-        try await pipeline.stop()
-    }
+            let has = await pipeline.hasComponents
+            #expect(has == true)
+            let current = await pipeline.currentComponents
+            #expect(current?.input != nil)
+            #expect(current?.encoding != nil)
+            #expect(current?.segmentation != nil)
+            #expect(current?.playlist != nil)
+            #expect(current?.audio != nil)
+            #expect(current?.audio?.loudnessMeter != nil)
+            #expect(current?.audio?.normalizer != nil)
+            #expect(current?.audio?.levelMeter != nil)
+            let hasLevel = await pipeline.hasLevelMeter
+            #expect(hasLevel == true)
+            try await pipeline.stop()
+        }
 
-    // MARK: - LL-HLS Pipeline
+        // MARK: - Video Live Pipeline
 
-    @Test("LL-HLS: all groups + low latency + blocking handler")
-    func llhlsPipeline() async throws {
-        let pipeline = LivePipeline()
-        let llhls = LLHLSManager()
-        let handler = BlockingPlaylistHandler(manager: llhls)
-        let delta = DeltaUpdateGenerator(canSkipUntil: 36.0)
-        let storage = MockShowcaseStorage()
-        let components = LivePipelineComponents(
-            input: InputComponents(source: MockShowcaseSource()),
-            encoding: EncodingComponents(encoder: AudioEncoder()),
-            segmentation: SegmentationComponents(
-                segmenter: IncrementalSegmenter()
-            ),
-            playlist: PlaylistComponents(
-                manager: SlidingWindowPlaylist()
-            ),
-            lowLatency: LowLatencyComponents(
-                manager: llhls,
-                blockingHandler: handler,
-                deltaGenerator: delta
-            ),
-            push: PushComponents(destinations: []),
-            metadata: MetadataComponents(
-                injector: LiveMetadataInjector()
-            ),
-            recording: RecordingComponents(
-                recorder: SimultaneousRecorder(storage: storage),
-                storage: storage
-            ),
-            audio: AudioComponents(levelMeter: LevelMeter())
-        )
-        try await pipeline.start(
-            configuration: LivePipelineConfiguration(),
-            components: components
-        )
-        let current = await pipeline.currentComponents
-        #expect(current?.lowLatency != nil)
-        #expect(current?.lowLatency?.deltaGenerator != nil)
-        #expect(current?.lowLatency?.blockingHandler != nil)
-        try await pipeline.stop()
-    }
+        @Test("Video live: input + encoding + segmentation + playlist + push")
+        func videoLivePipeline() async throws {
+            let pipeline = LivePipeline()
+            let components = LivePipelineComponents(
+                input: InputComponents(source: MockShowcaseSource()),
+                encoding: EncodingComponents(encoder: AudioEncoder()),
+                segmentation: SegmentationComponents(
+                    segmenter: IncrementalSegmenter()
+                ),
+                playlist: PlaylistComponents(
+                    manager: SlidingWindowPlaylist()
+                ),
+                push: PushComponents(
+                    destinations: [],
+                    multiDestinationPusher: MultiDestinationPusher()
+                )
+            )
+            try await pipeline.start(
+                configuration: .videoLive,
+                components: components
+            )
+            let current = await pipeline.currentComponents
+            #expect(current?.push != nil)
+            #expect(current?.push?.multiDestinationPusher != nil)
+            try await pipeline.stop()
+        }
+
+        // MARK: - LL-HLS Pipeline
+
+        @Test("LL-HLS: all groups + low latency + blocking handler")
+        func llhlsPipeline() async throws {
+            let pipeline = LivePipeline()
+            let llhls = LLHLSManager()
+            let handler = BlockingPlaylistHandler(manager: llhls)
+            let delta = DeltaUpdateGenerator(canSkipUntil: 36.0)
+            let storage = MockShowcaseStorage()
+            let components = LivePipelineComponents(
+                input: InputComponents(source: MockShowcaseSource()),
+                encoding: EncodingComponents(encoder: AudioEncoder()),
+                segmentation: SegmentationComponents(
+                    segmenter: IncrementalSegmenter()
+                ),
+                playlist: PlaylistComponents(
+                    manager: SlidingWindowPlaylist()
+                ),
+                lowLatency: LowLatencyComponents(
+                    manager: llhls,
+                    blockingHandler: handler,
+                    deltaGenerator: delta
+                ),
+                push: PushComponents(destinations: []),
+                metadata: MetadataComponents(
+                    injector: LiveMetadataInjector()
+                ),
+                recording: RecordingComponents(
+                    recorder: SimultaneousRecorder(storage: storage),
+                    storage: storage
+                ),
+                audio: AudioComponents(levelMeter: LevelMeter())
+            )
+            try await pipeline.start(
+                configuration: LivePipelineConfiguration(),
+                components: components
+            )
+            let current = await pipeline.currentComponents
+            #expect(current?.lowLatency != nil)
+            #expect(current?.lowLatency?.deltaGenerator != nil)
+            #expect(current?.lowLatency?.blockingHandler != nil)
+            try await pipeline.stop()
+        }
+    #endif
 
     // MARK: - Broadcast with DVR
 

@@ -17,46 +17,48 @@ struct LivePipelineWiringExtendedShowcaseTests {
 
     // MARK: - Full Stats
 
-    @Test("Full stats: all groups produce enriched statistics")
-    func fullStatsWithComponents() async throws {
-        let pipeline = LivePipeline()
-        let storage = MockShowcase2Storage()
-        let components = LivePipelineComponents(
-            input: InputComponents(source: MockShowcase2Source()),
-            encoding: EncodingComponents(encoder: AudioEncoder()),
-            segmentation: SegmentationComponents(
-                segmenter: IncrementalSegmenter()
-            ),
-            playlist: PlaylistComponents(
-                manager: SlidingWindowPlaylist()
-            ),
-            recording: RecordingComponents(
-                recorder: SimultaneousRecorder(storage: storage),
-                storage: storage
-            ),
-            audio: AudioComponents(
-                loudnessMeter: LoudnessMeter(sampleRate: 48000, channels: 2),
-                levelMeter: LevelMeter()
+    #if canImport(AVFoundation)
+        @Test("Full stats: all groups produce enriched statistics")
+        func fullStatsWithComponents() async throws {
+            let pipeline = LivePipeline()
+            let storage = MockShowcase2Storage()
+            let components = LivePipelineComponents(
+                input: InputComponents(source: MockShowcase2Source()),
+                encoding: EncodingComponents(encoder: AudioEncoder()),
+                segmentation: SegmentationComponents(
+                    segmenter: IncrementalSegmenter()
+                ),
+                playlist: PlaylistComponents(
+                    manager: SlidingWindowPlaylist()
+                ),
+                recording: RecordingComponents(
+                    recorder: SimultaneousRecorder(storage: storage),
+                    storage: storage
+                ),
+                audio: AudioComponents(
+                    loudnessMeter: LoudnessMeter(sampleRate: 48000, channels: 2),
+                    levelMeter: LevelMeter()
+                )
             )
-        )
-        try await pipeline.start(
-            configuration: LivePipelineConfiguration(),
-            components: components
-        )
-        await pipeline.processSegment(
-            data: segmentData(size: 2048), duration: 6.0,
-            filename: "seg0.m4s"
-        )
-        await pipeline.processSegment(
-            data: segmentData(size: 3072), duration: 6.0,
-            filename: "seg1.m4s"
-        )
-        let stats = await pipeline.statistics
-        #expect(stats.segmentsProduced == 2)
-        #expect(stats.totalBytes == 5120)
-        let summary = try await pipeline.stop()
-        #expect(summary.segmentsProduced == 2)
-    }
+            try await pipeline.start(
+                configuration: LivePipelineConfiguration(),
+                components: components
+            )
+            await pipeline.processSegment(
+                data: segmentData(size: 2048), duration: 6.0,
+                filename: "seg0.m4s"
+            )
+            await pipeline.processSegment(
+                data: segmentData(size: 3072), duration: 6.0,
+                filename: "seg1.m4s"
+            )
+            let stats = await pipeline.statistics
+            #expect(stats.segmentsProduced == 2)
+            #expect(stats.totalBytes == 5120)
+            let summary = try await pipeline.stop()
+            #expect(summary.segmentsProduced == 2)
+        }
+    #endif
 
     // MARK: - Live to VOD
 
