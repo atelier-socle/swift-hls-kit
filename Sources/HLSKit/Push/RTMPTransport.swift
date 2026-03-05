@@ -48,4 +48,37 @@ public protocol RTMPTransport: Sendable {
 
     /// Whether the transport is currently connected.
     var isConnected: Bool { get async }
+
+    /// Send dynamic metadata during an active stream.
+    ///
+    /// Transports that support live metadata injection (e.g.,
+    /// RTMPKit 0.2.0) override this to update stream metadata
+    /// on the fly. The default implementation is a no-op.
+    ///
+    /// - Parameter metadata: Key-value metadata pairs to send.
+    func sendMetadata(_ metadata: [String: String]) async throws
+
+    /// Server capabilities detected during the RTMP handshake.
+    ///
+    /// Transports that perform capability detection (e.g., Enhanced
+    /// RTMP v2 negotiation) override this to report the server's
+    /// advertised features. The default implementation returns `nil`.
+    var serverCapabilities: RTMPServerCapabilities? { get async }
+}
+
+// MARK: - Default Implementations
+
+extension RTMPTransport {
+
+    /// Default no-op implementation for backward compatibility.
+    public func sendMetadata(
+        _ metadata: [String: String]
+    ) async throws {
+        // No-op: legacy transports do not support dynamic metadata.
+    }
+
+    /// Default implementation returns `nil` for backward compatibility.
+    public var serverCapabilities: RTMPServerCapabilities? {
+        get async { nil }
+    }
 }

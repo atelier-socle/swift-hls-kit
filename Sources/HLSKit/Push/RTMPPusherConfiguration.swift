@@ -110,4 +110,87 @@ public struct RTMPPusherConfiguration: Sendable, Equatable {
             streamKey: streamKey
         )
     }
+
+    // MARK: - Platform Presets (0.4.0)
+
+    /// Instagram Live configuration.
+    ///
+    /// Uses RTMPS ingest at `live-upload.instagram.com`.
+    /// Mirrors RTMPKit 0.2.0 ``PlatformPreset/instagram``.
+    ///
+    /// - Parameter streamKey: Instagram stream key.
+    /// - Returns: Configuration for Instagram RTMPS ingest.
+    public static func instagram(
+        streamKey: String
+    ) -> RTMPPusherConfiguration {
+        RTMPPusherConfiguration(
+            serverURL: "rtmps://live-upload.instagram.com:443/rtmp/",
+            streamKey: streamKey
+        )
+    }
+
+    /// TikTok Live configuration.
+    ///
+    /// Uses RTMPS ingest at `push.tiktok.com`.
+    /// Mirrors RTMPKit 0.2.0 ``PlatformPreset/tiktok``.
+    ///
+    /// - Parameter streamKey: TikTok stream key.
+    /// - Returns: Configuration for TikTok RTMPS ingest.
+    public static func tiktok(
+        streamKey: String
+    ) -> RTMPPusherConfiguration {
+        RTMPPusherConfiguration(
+            serverURL: "rtmps://push.tiktok.com/rtmp/",
+            streamKey: streamKey
+        )
+    }
+
+    /// Twitter/X Live configuration.
+    ///
+    /// Uses RTMPS ingest via Periscope infrastructure.
+    /// Mirrors RTMPKit 0.2.0 ``PlatformPreset/twitter``.
+    ///
+    /// - Parameter streamKey: Twitter/X stream key.
+    /// - Returns: Configuration for Twitter RTMPS ingest.
+    public static func twitter(
+        streamKey: String
+    ) -> RTMPPusherConfiguration {
+        RTMPPusherConfiguration(
+            serverURL: "rtmps://prod-rtmp-publish.periscope.tv:443/",
+            streamKey: streamKey
+        )
+    }
+
+    /// Rumble Live configuration.
+    ///
+    /// Uses RTMP (non-TLS) ingest at `publish.rumble.com`.
+    /// Mirrors RTMPKit 0.2.0 ``PlatformPreset/rumble``.
+    ///
+    /// - Parameter streamKey: Rumble stream key.
+    /// - Returns: Configuration for Rumble RTMP ingest.
+    public static func rumble(
+        streamKey: String
+    ) -> RTMPPusherConfiguration {
+        RTMPPusherConfiguration(
+            serverURL: "rtmp://publish.rumble.com/live/",
+            streamKey: streamKey
+        )
+    }
+
+    /// Kick Live configuration.
+    ///
+    /// Uses RTMP ingest via global CDN.
+    /// Mirrors RTMPKit 0.2.0 ``PlatformPreset/kick``.
+    ///
+    /// - Parameter streamKey: Kick stream key.
+    /// - Returns: Configuration for Kick RTMP ingest.
+    public static func kick(
+        streamKey: String
+    ) -> RTMPPusherConfiguration {
+        RTMPPusherConfiguration(
+            serverURL:
+                "rtmp://fa723fc1b171.global-contribute.live-video.net/app/",
+            streamKey: streamKey
+        )
+    }
 }

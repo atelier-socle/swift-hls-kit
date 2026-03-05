@@ -23,6 +23,17 @@ public actor RTMPPusher: SegmentPusher {
     private let sendFn: @Sendable (Data, UInt32, FLVTagType) async throws -> Void
     private let isConnectedFn: @Sendable () async -> Bool
 
+    // v2 transport closures.
+    private let sendMetadataFn: @Sendable ([String: String]) async throws -> Void
+    private let serverCapabilitiesFn: @Sendable () async -> RTMPServerCapabilities?
+    private let connectionQualityFn: (@Sendable () async -> TransportQuality?)?
+
+    /// Stream of transport events from the underlying transport.
+    ///
+    /// Returns an active stream if the transport conforms to
+    /// ``QualityAwareTransport``, otherwise an empty completed stream.
+    public nonisolated let transportEvents: AsyncStream<TransportEvent>
+
     private var _connectionState: PushConnectionState = .disconnected
     private var _stats: PushStats = .zero
     private var currentTimestamp: UInt32 = 0
@@ -51,6 +62,25 @@ public actor RTMPPusher: SegmentPusher {
         }
         self.isConnectedFn = {
             await transport.isConnected
+        }
+        self.sendMetadataFn = { metadata in
+            try await transport.sendMetadata(metadata)
+        }
+        self.serverCapabilitiesFn = {
+            await transport.serverCapabilities
+        }
+
+        // Capture quality-aware capabilities if the transport
+        // conforms to QualityAwareTransport. The existential cast
+        // is required because T is only constrained to RTMPTransport.
+        if let qualityTransport = transport as? any QualityAwareTransport {
+            self.connectionQualityFn = {
+                await qualityTransport.connectionQuality
+            }
+            self.transportEvents = qualityTransport.transportEvents
+        } else {
+            self.connectionQualityFn = nil
+            self.transportEvents = AsyncStream { $0.finish() }
         }
     }
 
@@ -166,6 +196,33 @@ public actor RTMPPusher: SegmentPusher {
                 underlying: error.localizedDescription
             )
         }
+    }
+
+    // MARK: - Transport v2
+
+    /// Current transport quality, if the underlying transport
+    /// conforms to ``QualityAwareTransport``.
+    ///
+    /// Returns `nil` when the transport does not support quality
+    /// reporting.
+    public var transportQuality: TransportQuality? {
+        get async {
+            guard let fn = connectionQualityFn else { return nil }
+            return await fn()
+        }
+    }
+
+    /// Update stream metadata on the RTMP connection.
+    ///
+    /// Delegates to the transport's ``RTMPTransport/sendMetadata(_:)``
+    /// method. Requires an active connection.
+    ///
+    /// - Parameter metadata: Key-value metadata pairs to send.
+    public func updateStreamMetadata(
+        _ metadata: [String: String]
+    ) async throws {
+        try guardConnected()
+        try await sendMetadataFn(metadata)
     }
 
     // MARK: - Private
