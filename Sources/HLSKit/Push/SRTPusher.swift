@@ -23,6 +23,17 @@ public actor SRTPusher: SegmentPusher {
     private let isConnectedFn: @Sendable () async -> Bool
     private let networkStatsFn: @Sendable () async -> SRTNetworkStats?
 
+    // v2 transport closures.
+    private let connectionQualityFn: @Sendable () async -> SRTConnectionQuality?
+    private let isEncryptedFn: @Sendable () async -> Bool
+    private let qualityAwareQualityFn: (@Sendable () async -> TransportQuality?)?
+
+    /// Stream of transport events from the underlying transport.
+    ///
+    /// Returns an active stream if the transport conforms to
+    /// ``QualityAwareTransport``, otherwise an empty completed stream.
+    public nonisolated let transportEvents: AsyncStream<TransportEvent>
+
     private var _connectionState: PushConnectionState = .disconnected
     private var _stats: PushStats = .zero
 
@@ -53,6 +64,24 @@ public actor SRTPusher: SegmentPusher {
         }
         self.networkStatsFn = {
             await transport.networkStats
+        }
+        self.connectionQualityFn = {
+            await transport.connectionQuality
+        }
+        self.isEncryptedFn = {
+            await transport.isEncrypted
+        }
+
+        // Capture quality-aware capabilities if the transport
+        // conforms to QualityAwareTransport.
+        if let qualityTransport = transport as? any QualityAwareTransport {
+            self.qualityAwareQualityFn = {
+                await qualityTransport.connectionQuality
+            }
+            self.transportEvents = qualityTransport.transportEvents
+        } else {
+            self.qualityAwareQualityFn = nil
+            self.transportEvents = AsyncStream { $0.finish() }
         }
     }
 
@@ -133,6 +162,40 @@ public actor SRTPusher: SegmentPusher {
     public var networkStats: SRTNetworkStats? {
         get async {
             await networkStatsFn()
+        }
+    }
+
+    // MARK: - Transport v2
+
+    /// Current transport quality, if the underlying transport
+    /// conforms to ``QualityAwareTransport``.
+    ///
+    /// Returns `nil` when the transport does not support quality
+    /// reporting.
+    public var transportQuality: TransportQuality? {
+        get async {
+            guard let fn = qualityAwareQualityFn else { return nil }
+            return await fn()
+        }
+    }
+
+    /// SRT-specific connection quality from the transport.
+    ///
+    /// Delegates to the transport's
+    /// ``SRTTransport/connectionQuality`` property.
+    public var connectionQuality: SRTConnectionQuality? {
+        get async {
+            await connectionQualityFn()
+        }
+    }
+
+    /// Whether the SRT connection is using AES encryption.
+    ///
+    /// Delegates to the transport's
+    /// ``SRTTransport/isEncrypted`` property.
+    public var isEncrypted: Bool {
+        get async {
+            await isEncryptedFn()
         }
     }
 

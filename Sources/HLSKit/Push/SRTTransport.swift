@@ -34,6 +34,26 @@ public struct SRTOptions: Sendable, Equatable {
     /// Stream ID for SRT access control.
     public var streamID: String?
 
+    /// Connection mode (caller, listener, or rendezvous).
+    ///
+    /// Matches SRTKit 0.1.0's ``ConnectionMode``. Default is
+    /// `.caller` for backward compatibility.
+    public var mode: SRTConnectionMode
+
+    /// Forward error correction configuration.
+    ///
+    /// When set, enables SMPTE 2022-1 compatible FEC for
+    /// packet loss recovery without retransmission. Matches
+    /// SRTKit 0.1.0's FEC subsystem.
+    public var fecConfiguration: SRTFECConfiguration?
+
+    /// Congestion control algorithm.
+    ///
+    /// `.live` for real-time streaming, `.file` for
+    /// high-throughput bulk transfer. Matches SRTKit 0.1.0's
+    /// LiveCC and FileCC algorithms.
+    public var congestionControl: SRTCongestionControl
+
     /// Creates SRT connection options.
     ///
     /// - Parameters:
@@ -42,18 +62,27 @@ public struct SRTOptions: Sendable, Equatable {
     ///   - latency: Latency in ms. Default `120`.
     ///   - maxBandwidth: Max bandwidth. Default `0` (unlimited).
     ///   - streamID: Stream ID. Default `nil`.
+    ///   - mode: Connection mode. Default `.caller`.
+    ///   - fecConfiguration: FEC config. Default `nil`.
+    ///   - congestionControl: Congestion algorithm. Default `.live`.
     public init(
         passphrase: String? = nil,
         keyLength: KeyLength = .aes128,
         latency: Int = 120,
         maxBandwidth: Int64 = 0,
-        streamID: String? = nil
+        streamID: String? = nil,
+        mode: SRTConnectionMode = .caller,
+        fecConfiguration: SRTFECConfiguration? = nil,
+        congestionControl: SRTCongestionControl = .live
     ) {
         self.passphrase = passphrase
         self.keyLength = keyLength
         self.latency = latency
         self.maxBandwidth = maxBandwidth
         self.streamID = streamID
+        self.mode = mode
+        self.fecConfiguration = fecConfiguration
+        self.congestionControl = congestionControl
     }
 
     /// Default options: no encryption, 120ms latency, unlimited
@@ -77,6 +106,90 @@ public struct SRTOptions: Sendable, Equatable {
     }
 }
 
+// MARK: - SRT Connection Mode
+
+/// SRT connection mode.
+///
+/// Matches SRTKit 0.1.0's connection modes: caller initiates
+/// to a listener, listener accepts incoming connections, and
+/// rendezvous allows both sides to initiate simultaneously.
+public enum SRTConnectionMode: String, Sendable, Equatable, CaseIterable {
+
+    /// Initiates connection to a remote listener.
+    case caller
+
+    /// Accepts incoming connections.
+    case listener
+
+    /// Both sides initiate simultaneously.
+    case rendezvous
+}
+
+// MARK: - SRT FEC Configuration
+
+/// Forward error correction configuration for SRT.
+///
+/// Mirrors SRTKit 0.1.0's SMPTE 2022-1 XOR-based FEC with
+/// configurable row and column protection.
+public struct SRTFECConfiguration: Sendable, Equatable {
+
+    /// FEC packet layout strategy.
+    ///
+    /// Matches SRTKit 0.1.0's ``FECConfiguration.Layout``.
+    public enum Layout: String, Sendable, Equatable, CaseIterable {
+        /// Row groups align with column groups.
+        case even
+        /// Row groups offset to spread burst errors.
+        case staircase
+    }
+
+    /// Packet layout strategy.
+    public let layout: Layout
+
+    /// Number of rows in the FEC matrix.
+    public let rows: Int
+
+    /// Number of columns in the FEC matrix.
+    public let columns: Int
+
+    /// Creates an FEC configuration.
+    ///
+    /// - Parameters:
+    ///   - layout: Packet layout strategy.
+    ///   - rows: Number of rows.
+    ///   - columns: Number of columns.
+    public init(layout: Layout, rows: Int, columns: Int) {
+        self.layout = layout
+        self.rows = rows
+        self.columns = columns
+    }
+
+    /// SMPTE 2022-1 standard configuration.
+    ///
+    /// Uses staircase layout with 5×5 matrix for balanced
+    /// burst and random loss protection.
+    public static let smpte2022 = SRTFECConfiguration(
+        layout: .staircase, rows: 5, columns: 5
+    )
+}
+
+// MARK: - SRT Congestion Control
+
+/// SRT congestion control algorithm.
+///
+/// Matches SRTKit 0.1.0's LiveCC (pacing-based, low latency)
+/// and FileCC (AIMD windowing, high throughput).
+public enum SRTCongestionControl: String, Sendable, Equatable, CaseIterable {
+
+    /// Pacing-based control for real-time streaming.
+    case live
+
+    /// AIMD windowing for high-throughput file transfer.
+    case file
+}
+
+// MARK: - SRT Network Stats
+
 /// Network statistics from an SRT connection.
 ///
 /// Provides real-time transport metrics for monitoring
@@ -95,6 +208,18 @@ public struct SRTNetworkStats: Sendable, Equatable {
     /// Retransmission rate (0.0–1.0).
     public var retransmitRate: Double
 
+    /// Send buffer level in milliseconds.
+    public var sendBufferMs: Double
+
+    /// Receive buffer level in milliseconds.
+    public var receiveBufferMs: Double
+
+    /// RTT variance (jitter indicator) in seconds.
+    public var rttVariance: Double
+
+    /// Flow control window size in packets.
+    public var flowWindowSize: Int
+
     /// Creates SRT network statistics.
     ///
     /// - Parameters:
@@ -102,24 +227,38 @@ public struct SRTNetworkStats: Sendable, Equatable {
     ///   - bandwidth: Bandwidth in bytes/sec.
     ///   - packetLossRate: Loss rate (0.0–1.0).
     ///   - retransmitRate: Retransmit rate (0.0–1.0).
+    ///   - sendBufferMs: Send buffer in ms. Default `0.0`.
+    ///   - receiveBufferMs: Receive buffer in ms. Default `0.0`.
+    ///   - rttVariance: RTT variance. Default `0.0`.
+    ///   - flowWindowSize: Flow window in packets. Default `0`.
     public init(
         roundTripTime: TimeInterval,
         bandwidth: Double,
         packetLossRate: Double,
-        retransmitRate: Double
+        retransmitRate: Double,
+        sendBufferMs: Double = 0.0,
+        receiveBufferMs: Double = 0.0,
+        rttVariance: Double = 0.0,
+        flowWindowSize: Int = 0
     ) {
         self.roundTripTime = roundTripTime
         self.bandwidth = bandwidth
         self.packetLossRate = packetLossRate
         self.retransmitRate = retransmitRate
+        self.sendBufferMs = sendBufferMs
+        self.receiveBufferMs = receiveBufferMs
+        self.rttVariance = rttVariance
+        self.flowWindowSize = flowWindowSize
     }
 }
+
+// MARK: - SRT Transport Protocol
 
 /// Protocol for SRT (Secure Reliable Transport) operations.
 ///
 /// Users implement this with their preferred SRT library
-/// (e.g., libsrt wrapper). swift-hls-kit handles the
-/// HLS-specific orchestration.
+/// (e.g., swift-srt-kit, libsrt wrapper). swift-hls-kit
+/// handles the HLS-specific orchestration.
 public protocol SRTTransport: Sendable {
 
     /// Connect to an SRT listener.
@@ -145,4 +284,32 @@ public protocol SRTTransport: Sendable {
 
     /// Current network statistics from SRT.
     var networkStats: SRTNetworkStats? { get async }
+
+    /// SRT-specific connection quality assessment.
+    ///
+    /// Transports that perform quality scoring (e.g.,
+    /// swift-srt-kit 0.1.0) override this to report composite
+    /// quality metrics. The default implementation returns `nil`.
+    var connectionQuality: SRTConnectionQuality? { get async }
+
+    /// Whether the connection is using AES encryption.
+    ///
+    /// Transports that detect encryption state during the SRT
+    /// handshake override this. The default returns `false`.
+    var isEncrypted: Bool { get async }
+}
+
+// MARK: - Default Implementations
+
+extension SRTTransport {
+
+    /// Default returns `nil` for backward compatibility.
+    public var connectionQuality: SRTConnectionQuality? {
+        get async { nil }
+    }
+
+    /// Default returns `false` for backward compatibility.
+    public var isEncrypted: Bool {
+        get async { false }
+    }
 }
