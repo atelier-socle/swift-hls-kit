@@ -51,11 +51,16 @@ public actor LivePipeline {
     /// Current active destination identifiers.
     public private(set) var activeDestinations: [String] = []
 
-    // MARK: - Internal (accessed by LivePipelineOrchestration extension)
+    // MARK: - Internal (accessed by extensions)
 
     let continuation: AsyncStream<LivePipelineEvent>.Continuation
     var configuration: LivePipelineConfiguration?
     var components: LivePipelineComponents?
+
+    // Transport monitoring state (accessed by LivePipelineTransportMonitor)
+    var monitoredPushers: [String: TransportAwarePusher] = [:]
+    var transportMonitorTasks: [String: Task<Void, Never>] = [:]
+    var abrTrackers: [String: ABRTracker] = [:]
 
     // MARK: - Private
 
@@ -160,6 +165,9 @@ public actor LivePipeline {
 
         transitionTo(.stopped(summary: summary))
 
+        // Cancel transport monitoring
+        cancelAllTransportMonitoring()
+
         // Reset to allow reuse
         self.configuration = nil
         self.components = nil
@@ -225,13 +233,44 @@ public actor LivePipeline {
         }
     }
 
+    /// Adds a segment pusher destination at runtime.
+    ///
+    /// If the pusher is a ``TransportAwarePusher`` and a
+    /// ``LivePipelineConfiguration/transportPolicy`` is configured,
+    /// transport event monitoring starts automatically.
+    ///
+    /// - Parameters:
+    ///   - pusher: The segment pusher to add.
+    ///   - id: A unique identifier for this destination.
+    public func addDestination<P: SegmentPusher>(
+        _ pusher: P, id: String
+    ) {
+        if !activeDestinations.contains(id) {
+            activeDestinations.append(id)
+        }
+        if let transportPusher = pusher as? TransportAwarePusher {
+            monitoredPushers[id] = transportPusher
+            if configuration?.transportPolicy != nil,
+                case .running = state
+            {
+                startTransportMonitoring(
+                    destination: id, pusher: transportPusher
+                )
+            }
+        }
+    }
+
     /// Removes a push destination at runtime.
     ///
-    /// If the ID is not found, this is a no-op.
+    /// If the ID is not found, this is a no-op. Stops transport
+    /// monitoring for the destination if active.
     ///
     /// - Parameter id: The identifier of the destination to remove.
     public func removeDestination(id: String) {
         activeDestinations.removeAll { $0 == id }
+        stopTransportMonitoring(destination: id)
+        monitoredPushers.removeValue(forKey: id)
+        abrTrackers.removeValue(forKey: id)
     }
 
     // MARK: - Info
@@ -288,6 +327,10 @@ public actor LivePipeline {
         let now = Date()
         self.startDate = now
         transitionTo(.running(since: now))
+
+        if configuration.transportPolicy != nil {
+            startAllTransportMonitoring()
+        }
     }
 
     private func validateComponentCompatibility(
