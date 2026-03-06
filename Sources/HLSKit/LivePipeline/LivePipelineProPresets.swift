@@ -111,6 +111,27 @@ extension LivePipelineConfiguration {
         return config
     }
 
+    // MARK: - Spatial Video Presets (Phase 23)
+
+    /// Spatial video for Apple Vision Pro (MV-HEVC stereoscopic).
+    ///
+    /// - Video: MV-HEVC stereo, 1080p (or 4K with Dolby Vision)
+    /// - Layout: Stereoscopic left/right (configurable)
+    /// - Segments: 6s, fMP4
+    public static func spatialVideo(
+        channelLayout: VideoChannelLayout = .stereoLeftRight,
+        dolbyVision: Bool = false
+    ) -> Self {
+        var config = Self()
+        config.videoEnabled = true
+        config.videoBitrate = dolbyVision ? 15_000_000 : 10_000_000
+        config.resolution = dolbyVision ? .uhd4K : .fullHD1080p
+        if dolbyVision {
+            config.hdr = .dolbyVisionProfile8
+        }
+        return config
+    }
+
     // MARK: - Combined Pro Presets
 
     /// Broadcast-grade live: DRM + CC + spatial audio + HDR + DVR + recording.
