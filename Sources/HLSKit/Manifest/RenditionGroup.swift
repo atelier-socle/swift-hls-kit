@@ -48,6 +48,18 @@ public struct Rendition: Sendable, Hashable, Codable {
     /// The channels attribute (e.g., `"2"` for stereo, `"6"` for 5.1).
     public var channels: String?
 
+    /// Codec identifier for this rendition.
+    ///
+    /// For subtitle renditions: `"wvtt"` (WebVTT) or
+    /// `"stpp.ttml.im1t"` (IMSC1).
+    public var codec: String?
+
+    /// Convenience to access the codec as a ``SubtitleCodec`` value.
+    public var subtitleCodec: SubtitleCodec? {
+        get { codec.flatMap { SubtitleCodec(rawValue: $0) } }
+        set { codec = newValue?.rawValue }
+    }
+
     /// Creates a rendition.
     ///
     /// - Parameters:
@@ -63,6 +75,7 @@ public struct Rendition: Sendable, Hashable, Codable {
     ///   - instreamId: An optional instream identifier.
     ///   - characteristics: Optional rendition characteristics.
     ///   - channels: An optional channel configuration.
+    ///   - codec: An optional codec identifier.
     public init(
         type: MediaType,
         groupId: String,
@@ -75,7 +88,8 @@ public struct Rendition: Sendable, Hashable, Codable {
         forced: Bool = false,
         instreamId: String? = nil,
         characteristics: String? = nil,
-        channels: String? = nil
+        channels: String? = nil,
+        codec: String? = nil
     ) {
         self.type = type
         self.groupId = groupId
@@ -89,5 +103,6 @@ public struct Rendition: Sendable, Hashable, Codable {
         self.instreamId = instreamId
         self.characteristics = characteristics
         self.channels = channels
+        self.codec = codec
     }
 }

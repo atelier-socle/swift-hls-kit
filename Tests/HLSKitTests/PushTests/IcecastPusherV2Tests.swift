@@ -225,6 +225,25 @@ struct IcecastPusherV2Tests {
         #expect(stats?.currentBitrate == 128_000.0)
     }
 
+    // MARK: - Conversion Method Wiring
+
+    @Test("statisticsSnapshot converts via toTransportStatisticsSnapshot")
+    func statisticsSnapshotConversion() async {
+        let config = IcecastPusherConfiguration.mp3Stream(
+            serverURL: "http://icecast.test:8000",
+            mountpoint: "/live.mp3",
+            password: "pass"
+        )
+        let pusher = IcecastPusher(
+            configuration: config, transport: PlainIcecastMock()
+        )
+        let snapshot = await pusher.statisticsSnapshot
+        #expect(snapshot != nil)
+        #expect(snapshot?.bytesSent == 10_000)
+        #expect(snapshot?.duration == 60.0)
+        #expect(snapshot?.currentBitrate == 128_000.0)
+    }
+
     // MARK: - Existing Features Unchanged
 
     @Test("updateMetadata still works")

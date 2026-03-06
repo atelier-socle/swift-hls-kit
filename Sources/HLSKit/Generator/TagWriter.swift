@@ -251,6 +251,9 @@ extension TagWriter {
         if let channels = rendition.channels {
             attrs.append(("CHANNELS", quoted(channels)))
         }
+        if let codec = rendition.codec {
+            attrs.append(("CODECS", quoted(codec)))
+        }
         if let uri = rendition.uri {
             attrs.append(("URI", quoted(uri)))
         }

@@ -167,15 +167,18 @@ public actor SRTPusher: SegmentPusher {
 
     // MARK: - Transport v2
 
-    /// Current transport quality, if the underlying transport
-    /// conforms to ``QualityAwareTransport``.
+    /// Current transport quality.
     ///
-    /// Returns `nil` when the transport does not support quality
-    /// reporting.
+    /// If the transport conforms to ``QualityAwareTransport``,
+    /// returns its quality directly. Otherwise, converts
+    /// SRT-specific ``SRTConnectionQuality`` via
+    /// ``SRTConnectionQuality/toTransportQuality(timestamp:)``.
     public var transportQuality: TransportQuality? {
         get async {
-            guard let fn = qualityAwareQualityFn else { return nil }
-            return await fn()
+            if let fn = qualityAwareQualityFn {
+                return await fn()
+            }
+            return await connectionQualityFn()?.toTransportQuality()
         }
     }
 

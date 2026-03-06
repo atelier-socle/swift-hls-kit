@@ -116,8 +116,8 @@ struct SRTPusherV2Tests {
 
     // MARK: - Transport Quality
 
-    @Test("transportQuality returns nil for plain transport")
-    func qualityNilForPlainTransport() async {
+    @Test("transportQuality uses SRT conversion for plain transport")
+    func qualityConversionForPlainTransport() async {
         let config = SRTPusherConfiguration(
             host: "srt.test.com", port: 9000
         )
@@ -125,7 +125,9 @@ struct SRTPusherV2Tests {
             configuration: config, transport: PlainSRTMock()
         )
         let quality = await pusher.transportQuality
-        #expect(quality == nil)
+        #expect(quality != nil)
+        #expect(quality?.score == 0.90)
+        #expect(quality?.grade == .excellent)
     }
 
     @Test("transportQuality returns value for quality-aware transport")

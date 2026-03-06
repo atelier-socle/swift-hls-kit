@@ -189,15 +189,22 @@ public actor IcecastPusher: SegmentPusher {
 
     // MARK: - Transport v2
 
-    /// Current transport quality, if the underlying transport
-    /// conforms to ``QualityAwareTransport``.
+    /// Current transport quality.
     ///
-    /// Returns `nil` when the transport does not support quality
-    /// reporting.
+    /// If the transport conforms to ``QualityAwareTransport``,
+    /// returns its quality directly. Otherwise returns `nil`.
     public var transportQuality: TransportQuality? {
         get async {
             guard let fn = qualityAwareQualityFn else { return nil }
             return await fn()
+        }
+    }
+
+    /// Transport statistics snapshot converted from
+    /// Icecast-specific ``IcecastStreamStatistics``.
+    public var statisticsSnapshot: TransportStatisticsSnapshot? {
+        get async {
+            await streamStatisticsFn()?.toTransportStatisticsSnapshot()
         }
     }
 

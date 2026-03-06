@@ -48,6 +48,12 @@ public struct Variant: Sendable, Hashable, Codable {
     /// Corresponds to the `SUPPLEMENTAL-CODECS` attribute.
     public var supplementalCodecs: String?
 
+    /// Convenience to access supplemental codecs as a typed value.
+    public var supplementalCodecsValue: SupplementalCodecs? {
+        get { supplementalCodecs.map { SupplementalCodecs($0) } }
+        set { supplementalCodecs = newValue?.value }
+    }
+
     /// Video layout descriptor for `REQ-VIDEO-LAYOUT` attribute.
     ///
     /// Describes stereoscopic layout and/or projection type

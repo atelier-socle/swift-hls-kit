@@ -379,6 +379,9 @@ extension TagParser {
             ),
             channels: attributeParser.optionalQuotedString(
                 "CHANNELS", from: attrs
+            ),
+            codec: attributeParser.optionalQuotedString(
+                "CODECS", from: attrs
             )
         )
     }

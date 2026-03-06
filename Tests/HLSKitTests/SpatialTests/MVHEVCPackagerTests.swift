@@ -233,6 +233,25 @@ struct MVHEVCPackagerTests {
         #expect(sizes[0] == 0)
     }
 
+    // MARK: - hvcC Fallback Branch
+
+    @Test("Init segment with minimal SPS uses hvcC fallback")
+    func hvcCFallbackBranch() {
+        // SPS too short to parse profile — triggers fallback
+        let minimalSets = HEVCParameterSets(
+            vps: Data([0x40, 0x01]),
+            sps: Data([0x42, 0x01]),
+            pps: Data([0x44, 0x01])
+        )
+        let data = packager.createInitSegment(
+            configuration: config,
+            parameterSets: minimalSets
+        )
+        #expect(!data.isEmpty)
+        #expect(containsFourCC(data, "hvcC"))
+        #expect(containsFourCC(data, "vexu"))
+    }
+
     // MARK: - Helpers
 
     private func containsFourCC(_ data: Data, _ fourCC: String) -> Bool {
