@@ -169,6 +169,12 @@ extension TagWriter {
                 attrs.append(("CLOSED-CAPTIONS", "NONE"))
             }
         }
+        appendStreamInfExtendedAttributes(variant, to: &attrs)
+    }
+
+    private func appendStreamInfExtendedAttributes(
+        _ variant: Variant, to attrs: inout [(String, String)]
+    ) {
         if let hdcp = variant.hdcpLevel {
             attrs.append(("HDCP-LEVEL", hdcp.rawValue))
         }
@@ -177,6 +183,12 @@ extension TagWriter {
         }
         if let supplemental = variant.supplementalCodecs {
             attrs.append(("SUPPLEMENTAL-CODECS", quoted(supplemental)))
+        }
+        if let layout = variant.videoLayoutDescriptor {
+            let value = layout.attributeValue
+            if !value.isEmpty {
+                attrs.append(("REQ-VIDEO-LAYOUT", quoted(value)))
+            }
         }
     }
 

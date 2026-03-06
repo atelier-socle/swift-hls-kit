@@ -9,7 +9,7 @@
 /// let layout = VideoChannelLayout.stereoLeftRight
 /// print(layout.rawValue)  // "CH-STEREO"
 /// ```
-public enum VideoChannelLayout: String, Sendable, Equatable, CaseIterable {
+public enum VideoChannelLayout: String, Sendable, Equatable, Hashable, Codable, CaseIterable {
     /// Stereoscopic left/right layout (MV-HEVC).
     case stereoLeftRight = "CH-STEREO"
     /// Monoscopic layout (single view).

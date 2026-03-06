@@ -23,6 +23,7 @@ enum AppleHLSRules {
         results += validateHDCP(playlist)
         results += validateVideoRange(playlist)
         results += validateSupplementalCodecs(playlist)
+        results += validateVideoLayout(playlist)
         return results
     }
 
@@ -246,6 +247,39 @@ extension AppleHLSRules {
                         ruleSet: .appleHLS,
                         ruleId: "APPLE-2.8-supplemental-codecs"
                     ))
+            }
+        }
+        return results
+    }
+
+    private static func validateVideoLayout(
+        _ playlist: MasterPlaylist
+    ) -> [ValidationResult] {
+        let id = "APPLE-2.9-video-layout"
+        func warn(_ msg: String, field: String) -> ValidationResult {
+            ValidationResult(
+                severity: .warning, message: msg,
+                field: field, ruleSet: .appleHLS, ruleId: id
+            )
+        }
+        var results: [ValidationResult] = []
+        for (i, variant) in playlist.variants.enumerated() {
+            guard let layout = variant.videoLayoutDescriptor else { continue }
+            let f = "variants[\(i)].videoLayoutDescriptor"
+            if layout.projection == .appleImmersiveVideo,
+                layout.channelLayout != .stereoLeftRight
+            {
+                results.append(warn("PROJ-AIV needs CH-STEREO.", field: f))
+            }
+            if layout.projection == .halfEquirectangular,
+                layout.channelLayout == nil
+            {
+                results.append(warn("PROJ-HEQU typically needs CH-STEREO.", field: f))
+            }
+            if layout.channelLayout == .stereoLeftRight,
+                variant.supplementalCodecs == nil
+            {
+                results.append(warn("CH-STEREO without SUPPLEMENTAL-CODECS.", field: f))
             }
         }
         return results

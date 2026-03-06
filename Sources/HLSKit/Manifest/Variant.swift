@@ -48,6 +48,12 @@ public struct Variant: Sendable, Hashable, Codable {
     /// Corresponds to the `SUPPLEMENTAL-CODECS` attribute.
     public var supplementalCodecs: String?
 
+    /// Video layout descriptor for `REQ-VIDEO-LAYOUT` attribute.
+    ///
+    /// Describes stereoscopic layout and/or projection type
+    /// (360°, 180°, Apple Immersive Video).
+    public var videoLayoutDescriptor: VideoLayoutDescriptor?
+
     /// The URI of the media playlist for this variant.
     public var uri: String
 
@@ -67,6 +73,7 @@ public struct Variant: Sendable, Hashable, Codable {
     ///   - closedCaptions: An optional closed-captions value.
     ///   - videoRange: An optional video dynamic range.
     ///   - supplementalCodecs: An optional supplemental codecs string.
+    ///   - videoLayoutDescriptor: An optional video layout descriptor.
     public init(
         bandwidth: Int,
         resolution: Resolution? = nil,
@@ -80,7 +87,8 @@ public struct Variant: Sendable, Hashable, Codable {
         subtitles: String? = nil,
         closedCaptions: ClosedCaptionsValue? = nil,
         videoRange: VideoRange? = nil,
-        supplementalCodecs: String? = nil
+        supplementalCodecs: String? = nil,
+        videoLayoutDescriptor: VideoLayoutDescriptor? = nil
     ) {
         self.bandwidth = bandwidth
         self.resolution = resolution
@@ -95,6 +103,7 @@ public struct Variant: Sendable, Hashable, Codable {
         self.closedCaptions = closedCaptions
         self.videoRange = videoRange
         self.supplementalCodecs = supplementalCodecs
+        self.videoLayoutDescriptor = videoLayoutDescriptor
     }
 }
 

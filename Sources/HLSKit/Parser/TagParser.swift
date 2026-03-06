@@ -251,6 +251,9 @@ extension TagParser {
             .flatMap { HDCPLevel(rawValue: $0) }
         let videoRange = attributeParser.optionalEnumString("VIDEO-RANGE", from: attrs)
             .flatMap { VideoRange(rawValue: $0) }
+        let videoLayoutDescriptor = attributeParser.optionalQuotedString(
+            "REQ-VIDEO-LAYOUT", from: attrs
+        ).map { VideoLayoutDescriptor.parse($0) }
 
         return Variant(
             bandwidth: bandwidth,
@@ -281,7 +284,8 @@ extension TagParser {
             videoRange: videoRange,
             supplementalCodecs: attributeParser.optionalQuotedString(
                 "SUPPLEMENTAL-CODECS", from: attrs
-            )
+            ),
+            videoLayoutDescriptor: videoLayoutDescriptor
         )
     }
 
