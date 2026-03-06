@@ -256,7 +256,10 @@ struct BlockingHandlerBehaviorTests {
         try await Task.sleep(for: .milliseconds(50))
         #expect(await handler.pendingRequestCount == 1)
 
-        try await Task.sleep(for: .milliseconds(200))
+        for _ in 0..<40 {
+            if await handler.pendingRequestCount == 0 { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
         #expect(await handler.pendingRequestCount == 0)
 
         do {
