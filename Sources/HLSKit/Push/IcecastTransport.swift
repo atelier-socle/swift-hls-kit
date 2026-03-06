@@ -152,7 +152,7 @@ public protocol IcecastTransport: Sendable {
     ///
     /// Transports that track connection metrics override this
     /// to report real-time statistics. Matches IcecastKit 0.2.0's
-    /// ``ConnectionStatistics``. The default returns `nil`.
+    /// `ConnectionStatistics`. The default returns `nil`.
     var streamStatistics: IcecastStreamStatistics? { get async }
 }
 

@@ -8,7 +8,7 @@ A pure Swift library for the full HLS pipeline — VOD packaging and complete li
 
 ## Overview
 
-**HLSKit** is the first pure Swift HLS library with zero external dependencies in its core. It covers the full HLS pipeline — manifest parsing, generation, validation, segmentation, transcoding, encryption, and a complete live streaming pipeline with Low-Latency HLS, multi-destination push, timed metadata, DRM, spatial audio, HDR, and accessibility. Strict `Sendable` conformance throughout. 4478 tests, 31 industry standards covered.
+**HLSKit** is the first pure Swift HLS library with zero external dependencies in its core. It covers the full HLS pipeline — manifest parsing, generation, validation, segmentation, transcoding, encryption, and a complete live streaming pipeline with Low-Latency HLS, transport-aware multi-destination push, timed metadata, DRM, spatial audio, HDR, MV-HEVC stereoscopic video for Apple Vision Pro, IMSC1 subtitles, variable substitution, and accessibility. Strict `Sendable` conformance throughout. 5,127 tests, 31 industry standards covered.
 
 ```swift
 import HLSKit
@@ -36,14 +36,15 @@ let output = engine.generate(manifest)
 - **Cloud Transcode** — Delegate to Cloudflare Stream, AWS MediaConvert, or Mux
 - **Encrypt** — AES-128 full-segment and SAMPLE-AES sample-level encryption
 - **I-Frame** — Generate `EXT-X-I-FRAMES-ONLY` playlists for trick play
+- **Variable Substitution** — `EXT-X-DEFINE` with NAME/VALUE, IMPORT, and QUERYPARAM forms
 - **Builder DSL** — `@resultBuilder` syntax for constructing playlists declaratively
-- **CLI** — `hlskit-cli` command-line tool with 8 commands
+- **CLI** — `hlskit-cli` command-line tool with 10 commands
 
 ### Key Features — Live Streaming
 
 - **Live Pipeline** — End-to-end ``LivePipeline`` facade: input → encoding → segmentation → playlist → push
 - **LL-HLS** — Low-Latency HLS with partial segments, blocking reload, delta updates
-- **Multi-Destination Push** — HTTP, RTMP, SRT, and Icecast with failover and bandwidth monitoring
+- **Transport-Aware Push** — HTTP, RTMP, SRT, and Icecast with quality monitoring, ABR, and health dashboard
 - **Timed Metadata** — ID3, SCTE-35, DateRange, HLS Interstitials injection
 - **Recording** — Simultaneous recording with live-to-VOD conversion and auto chapters
 - **Spatial Audio** — Dolby Atmos, AC-3/E-AC-3, multi-channel layouts, Hi-Res audio
@@ -52,6 +53,9 @@ let output = engine.generate(manifest)
 - **Accessibility** — CEA-608/708 closed captions, live subtitles, audio descriptions
 - **Resilience** — Redundant streams, failover, gap signaling, content steering
 - **Audio Processing** — Format conversion, loudness metering, silence detection, channel mixing
+- **Spatial Video** — MV-HEVC stereoscopic packaging for Apple Vision Pro with Dolby Vision
+- **IMSC1 Subtitles** — W3C TTML subtitle parsing, rendering, and fMP4 segmentation
+- **Video Projection** — `REQ-VIDEO-LAYOUT` with 360°, 180°, and Apple Immersive Video support
 
 ### How It Works — VOD
 
@@ -68,6 +72,7 @@ let output = engine.generate(manifest)
 3. **Segment** — ``LiveSegmenter`` packages frames into CMAF fMP4
 4. **Playlist** — ``LivePlaylistManager`` maintains the live M3U8
 5. **Push** — ``SegmentPusher`` delivers to CDN or streaming servers
+6. **Monitor** — ``TransportAwarePusher`` feeds quality signals back to the pipeline for ABR
 
 ## Topics
 
@@ -272,6 +277,81 @@ let output = engine.generate(manifest)
 - ``PushConnectionState``
 - ``PushError``
 
+### Transport Quality & ABR
+
+- ``TransportQuality``
+- ``TransportQualityGrade``
+- ``TransportBitrateRecommendation``
+- ``TransportStatisticsSnapshot``
+- ``TransportRecordingState``
+- ``TransportEvent``
+- ``QualityAwareTransport``
+- ``AdaptiveBitrateTransport``
+- ``RecordingTransport``
+
+### Transport-Aware Pipeline
+
+- ``TransportAwarePusher``
+- ``TransportAwarePipelinePolicy``
+- ``TransportHealthDashboard``
+- ``TransportDestinationHealth``
+
+### RTMP Transport
+
+- ``RTMPTransport``
+- ``RTMPServerCapabilities``
+- ``FLVTagType``
+
+### SRT Transport
+
+- ``SRTTransport``
+- ``SRTOptions``
+- ``SRTConnectionMode``
+- ``SRTFECConfiguration``
+- ``SRTCongestionControl``
+- ``SRTARQMode``
+- ``SRTBondingMode``
+- ``SRTNetworkStats``
+- ``SRTConnectionQuality``
+
+### Icecast Transport
+
+- ``IcecastTransport``
+- ``IcecastCredentials``
+- ``IcecastAuthMode``
+- ``IcecastServerPreset``
+- ``IcecastMetadata``
+- ``IcecastStreamStatistics``
+
+### IMSC1 Subtitles
+
+- ``IMSC1Parser``
+- ``IMSC1Renderer``
+- ``IMSC1Segmenter``
+- ``IMSC1Document``
+- ``IMSC1Region``
+- ``IMSC1Style``
+- ``IMSC1Subtitle``
+- ``IMSC1Error``
+- ``SubtitleCodec``
+
+### MV-HEVC Spatial Video
+
+- ``MVHEVCPackager``
+- ``MVHEVCSampleProcessor``
+- ``SpatialVideoConfiguration``
+- ``VideoChannelLayout``
+- ``HEVCParameterSets``
+- ``HEVCNALUType``
+- ``SPSProfileInfo``
+- ``MVHEVCEncoderError``
+- ``SupplementalCodecs``
+
+### Video Projection
+
+- ``VideoProjection``
+- ``VideoLayoutDescriptor``
+
 ### Timed Metadata
 
 - ``LiveMetadataInjector``
@@ -413,7 +493,9 @@ let output = engine.generate(manifest)
 - <doc:ManagedTranscoding>
 - <doc:EncryptingSegments>
 - <doc:HLSEngine>
+- <doc:VariableSubstitution>
 - <doc:CLIReference>
+- <doc:TestingGuide>
 
 ### Articles — Live Streaming
 
@@ -432,3 +514,8 @@ let output = engine.generate(manifest)
 - <doc:LiveDRM>
 - <doc:LiveAccessibility>
 - <doc:LivePresets>
+- <doc:TransportContractsV2>
+- <doc:TransportAwarePipeline>
+- <doc:IMSC1SubtitlesGuide>
+- <doc:SpatialVideoGuide>
+- <doc:ProjectionSpecifiers>

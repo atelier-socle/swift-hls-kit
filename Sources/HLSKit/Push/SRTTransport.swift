@@ -36,7 +36,7 @@ public struct SRTOptions: Sendable, Equatable {
 
     /// Connection mode (caller, listener, or rendezvous).
     ///
-    /// Matches SRTKit 0.1.0's ``ConnectionMode``. Default is
+    /// Matches SRTKit 0.1.0's `ConnectionMode`. Default is
     /// `.caller` for backward compatibility.
     public var mode: SRTConnectionMode
 
@@ -57,7 +57,7 @@ public struct SRTOptions: Sendable, Equatable {
     /// ARQ (Automatic Repeat Request) mode for FEC.
     ///
     /// Controls retransmission behavior when FEC is enabled.
-    /// Matches SRTKit 0.1.0's ``FECConfiguration.ARQMode``.
+    /// Matches SRTKit 0.1.0's `FECConfiguration.ARQMode`.
     public var arqMode: SRTARQMode
 
     /// Connection group bonding mode.
@@ -154,7 +154,7 @@ public struct SRTFECConfiguration: Sendable, Equatable {
 
     /// FEC packet layout strategy.
     ///
-    /// Matches SRTKit 0.1.0's ``FECConfiguration.Layout``.
+    /// Matches SRTKit 0.1.0's `FECConfiguration.Layout`.
     public enum Layout: String, Sendable, Equatable, CaseIterable {
         /// Row groups align with column groups.
         case even
@@ -213,7 +213,7 @@ public enum SRTCongestionControl: String, Sendable, Equatable, CaseIterable {
 ///
 /// Controls retransmission behavior when forward error
 /// correction is enabled. Matches SRTKit 0.1.0's
-/// ``FECConfiguration.ARQMode``.
+/// `FECConfiguration.ARQMode`.
 public enum SRTARQMode: String, Sendable, Equatable, CaseIterable {
 
     /// FEC and ARQ both active (default).
@@ -230,7 +230,7 @@ public enum SRTARQMode: String, Sendable, Equatable, CaseIterable {
 
 /// Connection group bonding mode for SRT multi-link.
 ///
-/// Matches SRTKit 0.1.0's ``GroupMode`` for multi-link
+/// Matches SRTKit 0.1.0's `GroupMode` for multi-link
 /// bonding with broadcast, failover, and load balancing.
 public enum SRTBondingMode: String, Sendable, Equatable, CaseIterable {
 

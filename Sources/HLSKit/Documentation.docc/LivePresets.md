@@ -40,6 +40,7 @@ config.targetSegmentDuration = 6.0
 | `.videoDolbyVision` | HDR video | DV Profile 8, 4K |
 | `.multiDRMLive` | Multi-DRM | FairPlay + CENC |
 | `.accessibleLive` | Accessibility | CC + AD + subtitles |
+| `.spatialVideo()` | Apple Vision Pro | MV-HEVC stereo, 10+ Mbps |
 
 ```swift
 let config = LivePipelineConfiguration.broadcastPro
@@ -121,8 +122,55 @@ hlskit-cli live convert-to-vod /tmp/live/ --output /tmp/vod/
 hlskit-cli live metadata --inject "title=Breaking News"
 ```
 
+### Transport-Aware Pipeline Policy
+
+``TransportAwarePipelinePolicy`` enables quality monitoring and adaptive bitrate adjustments on the live pipeline. Set it on ``LivePipelineConfiguration/transportPolicy`` to activate transport monitoring for ``TransportAwarePusher`` destinations.
+
+```swift
+var config = LivePipelineConfiguration()
+config.transportPolicy = TransportAwarePipelinePolicy(
+    autoAdjustBitrate: true,
+    minimumQualityGrade: .fair,
+    abrResponsiveness: .responsive
+)
+```
+
+Two presets are available:
+- ``TransportAwarePipelinePolicy/default`` — ABR enabled, minimum grade `.poor`, responsive
+- ``TransportAwarePipelinePolicy/disabled`` — No ABR, no quality monitoring
+
+### Spatial Video Preset
+
+The ``LivePipelineConfiguration/spatialVideo(channelLayout:dolbyVision:)`` factory creates a configuration for Apple Vision Pro MV-HEVC streaming:
+
+```swift
+let config = LivePipelineConfiguration.spatialVideo()
+// config.videoEnabled == true
+// config.videoBitrate == 10_000_000
+
+let dvConfig = LivePipelineConfiguration.spatialVideo(
+    channelLayout: .stereoLeftRight,
+    dolbyVision: true
+)
+// dvConfig.videoBitrate == 15_000_000
+```
+
+### Transport Pipeline Events
+
+When a transport policy is active, ``LivePipelineEvent`` emits four additional cases:
+
+| Event | Trigger |
+|-------|---------|
+| `.transportQualityDegraded` | Quality drops below `minimumQualityGrade` |
+| `.transportBitrateAdjusted` | ABR adjusts encoding bitrate |
+| `.transportDestinationFailed` | Transport disconnects |
+| `.transportHealthUpdate` | ``TransportHealthDashboard`` snapshot after any quality change |
+
 ## Next Steps
 
+- <doc:TransportAwarePipeline> — Transport quality monitoring details
+- <doc:TransportContractsV2> — Transport v2 contracts and companion libraries
+- <doc:SpatialVideoGuide> — MV-HEVC spatial video packaging
 - <doc:LiveStreaming> — Architecture overview
 - <doc:LiveEncoding> — Encoder configuration
 - <doc:LiveSegmentation> — Segmentation options

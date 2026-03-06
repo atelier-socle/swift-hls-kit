@@ -115,8 +115,48 @@ let monitor = BandwidthMonitor(
 
 ``PushConnectionState`` tracks the pusher lifecycle: `disconnected` → `connecting` → `connected` → `pushing` → `reconnecting`.
 
+### Transport Quality Monitoring
+
+In 0.4.0, HLSKit adds transport v2 contracts that enable quality-aware delivery. ``TransportAwarePusher`` wraps any ``SegmentPusher`` together with a ``QualityAwareTransport`` to provide real-time quality signals back to the ``LivePipeline``.
+
+The ``QualityAwareTransport`` protocol provides:
+- ``TransportQuality`` — a score (0.0–1.0) with a ``TransportQualityGrade`` (excellent, good, fair, poor, critical)
+- ``TransportEvent`` — a unified event stream for connection state, quality changes, and bitrate recommendations
+- ``TransportStatisticsSnapshot`` — bytes sent, current/peak bitrate, reconnection count
+
+Additional protocol layers:
+- ``AdaptiveBitrateTransport`` — publishes ``TransportBitrateRecommendation`` signals for ABR
+- ``RecordingTransport`` — adds recording start/stop with ``TransportRecordingState``
+
+### Transport-Aware Pipeline Integration
+
+When a ``TransportAwarePipelinePolicy`` is set on ``LivePipelineConfiguration``, the pipeline monitors all ``TransportAwarePusher`` destinations and emits ``LivePipelineEvent`` cases for quality degradation, bitrate adjustments, destination failures, and health updates.
+
+```swift
+var config = LivePipelineConfiguration()
+config.transportPolicy = TransportAwarePipelinePolicy(
+    autoAdjustBitrate: true,
+    minimumQualityGrade: .fair,
+    abrResponsiveness: .responsive
+)
+```
+
+The ``TransportHealthDashboard`` aggregates health across all destinations with `healthyCount`, `degradedCount`, `failedCount`, and `overallGrade`.
+
+### Companion Libraries
+
+HLSKit works standalone with its built-in ``HTTPPusher``. For advanced transport protocols, optional companion libraries from the Atelier Socle ecosystem provide concrete implementations of the transport contracts:
+
+- [swift-rtmp-kit](https://github.com/atelier-socle/swift-rtmp-kit) — RTMP/RTMPS transport implementing ``RTMPTransport``
+- [swift-srt-kit](https://github.com/atelier-socle/swift-srt-kit) — SRT transport implementing ``SRTTransport``
+- [swift-icecast-kit](https://github.com/atelier-socle/swift-icecast-kit) — Icecast/SHOUTcast transport implementing ``IcecastTransport``
+
+These companion libraries are optional and additive. They conform to the protocols defined by HLSKit and integrate seamlessly through the ``TransportAwarePusher`` wrapper.
+
 ## Next Steps
 
+- <doc:TransportContractsV2> — Transport v2 protocols, quality grades, and companion libraries
+- <doc:TransportAwarePipeline> — Pipeline integration with transport quality monitoring
 - <doc:LiveSegmentation> — Produce segments for delivery
 - <doc:LivePlaylists> — Generate playlists to push alongside segments
 - <doc:LiveStreaming> — Full pipeline overview

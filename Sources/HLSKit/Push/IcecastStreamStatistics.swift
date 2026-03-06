@@ -5,7 +5,7 @@ import Foundation
 
 /// Icecast stream statistics reported by transports.
 ///
-/// Maps from IcecastKit's ``ConnectionStatistics`` to provide
+/// Maps from IcecastKit's `ConnectionStatistics` to provide
 /// HLSKit-compatible metrics for monitoring stream health.
 public struct IcecastStreamStatistics: Sendable, Equatable {
 

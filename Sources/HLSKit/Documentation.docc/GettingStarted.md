@@ -102,7 +102,7 @@ print("Duration: \(result.totalDuration)s")
 
 ### Quick Start: Live Streaming
 
-HLSKit 0.3.0 adds a complete live streaming pipeline. Here is a minimal audio segmenter:
+HLSKit includes a complete live streaming pipeline. Here is a minimal audio segmenter:
 
 ```swift
 import HLSKit
@@ -139,6 +139,74 @@ let config = LivePipelineConfiguration.podcastLive
 // config.videoEnabled == false
 ```
 
+### Quick Start: Variable Substitution
+
+Use `EXT-X-DEFINE` for CDN path templating and token injection:
+
+```swift
+let playlist = MasterPlaylist {
+    Define(name: "base", value: "https://cdn.example.com")
+    Define(import: "authToken")
+    Variant(
+        bandwidth: 800_000,
+        resolution: Resolution(width: 640, height: 360),
+        uri: "{$base}/360p/playlist.m3u8",
+        codecs: "avc1.4d401e"
+    )
+}
+```
+
+### Quick Start: Spatial Video
+
+Build a manifest for Apple Vision Pro with MV-HEVC stereoscopic video:
+
+```swift
+let playlist = MasterPlaylist(
+    version: .v7,
+    variants: [
+        Variant(
+            bandwidth: 15_000_000,
+            resolution: Resolution(width: 3840, height: 2160),
+            uri: "spatial/4k_dv.m3u8",
+            codecs: "hvc1.2.4.L153.B0",
+            videoRange: .pq,
+            supplementalCodecs: "dvh1.20.09/db4h",
+            videoLayoutDescriptor: .immersive180
+        ),
+        Variant(
+            bandwidth: 4_000_000,
+            resolution: Resolution(width: 1920, height: 1080),
+            uri: "video/1080p_2d.m3u8",
+            codecs: "avc1.640028,mp4a.40.2"
+        )
+    ],
+    independentSegments: true
+)
+```
+
+### Quick Start: Transport-Aware Pipeline
+
+Monitor transport quality and adjust bitrate automatically:
+
+```swift
+var config = LivePipelineConfiguration()
+config.transportPolicy = TransportAwarePipelinePolicy(
+    autoAdjustBitrate: true,
+    minimumQualityGrade: .fair,
+    abrResponsiveness: .responsive
+)
+
+let pipeline = LivePipeline()
+try await pipeline.start(configuration: config)
+
+// Monitor pipeline events
+for await event in pipeline.events {
+    if case .transportQualityDegraded(let dest, let quality) = event {
+        print("\(dest) degraded: \(quality.grade)")
+    }
+}
+```
+
 ## Next Steps
 
 - <doc:ManifestParsing> — Parse HLS manifests into typed models
@@ -150,3 +218,7 @@ let config = LivePipelineConfiguration.podcastLive
 - <doc:HLSEngine> — Use the high-level engine facade
 - <doc:LiveStreaming> — Build live streaming pipelines
 - <doc:CLIReference> — Run HLS workflows from the command line
+- <doc:VariableSubstitution> — CDN path templating with EXT-X-DEFINE
+- <doc:SpatialVideoGuide> — MV-HEVC stereoscopic video for Apple Vision Pro
+- <doc:IMSC1SubtitlesGuide> — IMSC1 subtitle parsing, rendering, and segmentation
+- <doc:TransportAwarePipeline> — Transport quality monitoring and ABR

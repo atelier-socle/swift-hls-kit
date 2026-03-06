@@ -8,9 +8,14 @@
 
 ![swift-hls-kit](./assets/banner.png)
 
-A pure Swift library for the full HLS pipeline — parse, generate, and validate M3U8 manifests, segment and transcode media, encrypt segments, and run a complete live streaming pipeline with Low-Latency HLS, multi-destination push, DRM, spatial audio, HDR, and accessibility. RFC 8216 compliant with strict `Sendable` conformance throughout. Zero external dependencies in the core library (only `swift-argument-parser` for the CLI). Cross-platform: macOS, iOS, tvOS, watchOS, visionOS, and Linux. 4478 tests, 31 industry standards covered.
+An enterprise-grade, pure Swift HLS library with complete live pipeline, MV-HEVC spatial video for Apple Vision Pro, IMSC1 subtitles, transport quality monitoring, and variable substitution. Parse, generate, and validate M3U8 manifests, segment and transcode media, encrypt segments, and run a transport-aware live streaming pipeline with Low-Latency HLS, quality-driven ABR, DRM, spatial audio, HDR, and accessibility. RFC 8216 compliant with strict `Sendable` conformance throughout. Zero external dependencies in the core library (only `swift-argument-parser` for the CLI). Cross-platform: macOS, iOS, tvOS, watchOS, visionOS, and Linux. 5,127 tests, 31 industry standards covered.
 
 Part of the [Atelier Socle](https://www.atelier-socle.com) ecosystem.
+
+HLSKit works standalone with built-in HTTP push. For advanced transport protocols, optional companion libraries from the Atelier Socle ecosystem provide concrete implementations:
+- [swift-rtmp-kit](https://github.com/atelier-socle/swift-rtmp-kit) — RTMP/RTMPS transport
+- [swift-srt-kit](https://github.com/atelier-socle/swift-srt-kit) — SRT transport
+- [swift-icecast-kit](https://github.com/atelier-socle/swift-icecast-kit) — Icecast/SHOUTcast transport
 
 ---
 
@@ -41,7 +46,7 @@ Part of the [Atelier Socle](https://www.atelier-socle.com) ecosystem.
 - **Live Segmentation** — CMAF fMP4 segmentation with `AudioSegmenter`, `VideoSegmenter`, `CMAFWriter`, and ring buffer
 - **Live Playlists** — `SlidingWindowPlaylist`, `DVRPlaylist`, `EventPlaylist` with `PlaylistRenderer`
 - **LL-HLS** — Low-Latency HLS with partial segments, blocking reload, delta updates, and server control
-- **Multi-destination push** — `HTTPPusher`, `RTMPPusher`, `SRTPusher`, `IcecastPusher` with failover and bandwidth monitoring
+- **Transport-Aware Push** — `HTTPPusher`, `RTMPPusher`, `SRTPusher`, `IcecastPusher` with quality monitoring, ABR, and health dashboard
 - **Timed metadata** — ID3, SCTE-35, DateRange, HLS Interstitials injection
 - **Recording** — Simultaneous recording with live-to-VOD conversion and auto chapter generation
 - **Spatial Audio** — Dolby Atmos, AC-3/E-AC-3, multi-channel layouts (5.1, 7.1.4, JOC), Hi-Res audio
@@ -50,11 +55,16 @@ Part of the [Atelier Socle](https://www.atelier-socle.com) ecosystem.
 - **Accessibility** — CEA-608/708 closed captions, live WebVTT subtitles, audio descriptions
 - **Resilience** — Redundant streams, failover, gap signaling (`EXT-X-GAP`), content steering
 - **Audio Processing** — Format conversion, loudness metering (LUFS), silence detection, channel mixing, normalization
-- **Pipeline Presets** — `podcastLive`, `radioLive`, `videoLive`, `videoSimulcast`, `multiDRMLive`, and more
+- **Transport v2 Contracts** — `QualityAwareTransport`, `AdaptiveBitrateTransport`, `RecordingTransport` with 10 RTMP presets, SRT FEC/bonding, Icecast auth modes
+- **Variable Substitution** — `EXT-X-DEFINE` with NAME/VALUE, IMPORT, and QUERYPARAM for CDN templating
+- **IMSC1 Subtitles** — W3C TTML parse, render, and fMP4 segment with `IMSC1Parser`, `IMSC1Renderer`, `IMSC1Segmenter`
+- **MV-HEVC Spatial Video** — Stereoscopic packaging for Apple Vision Pro with `MVHEVCPackager`, Dolby Vision Profile 8/20
+- **Video Projections** — `REQ-VIDEO-LAYOUT` with 360°, 180°, Apple Immersive Video via `VideoLayoutDescriptor`
+- **Pipeline Presets** — `podcastLive`, `radioLive`, `videoLive`, `videoSimulcast`, `spatialVideo`, `multiDRMLive`, and more
 
 ### Cross-Cutting
 
-- **CLI** — `hlskit-cli` command-line tool with 8 commands for common HLS workflows
+- **CLI** — `hlskit-cli` command-line tool with 10 commands for common HLS workflows
 - **Strict concurrency** — All public types are `Sendable`, built with Swift 6.2 strict concurrency throughout
 - **Zero dependencies** — Core library has no third-party dependencies
 
@@ -156,6 +166,94 @@ Or use a pre-built pipeline preset:
 let config = LivePipelineConfiguration.podcastLive
 // config.audioBitrate == 128_000
 // config.videoEnabled == false
+```
+
+---
+
+## Quick Start — Spatial Video
+
+Build a manifest for Apple Vision Pro with MV-HEVC stereoscopic video and Dolby Vision:
+
+```swift
+import HLSKit
+
+let playlist = MasterPlaylist(
+    version: .v7,
+    variants: [
+        Variant(
+            bandwidth: 15_000_000,
+            resolution: Resolution(width: 3840, height: 2160),
+            uri: "spatial/4k_dv.m3u8",
+            codecs: "hvc1.2.4.L153.B0",
+            videoRange: .pq,
+            supplementalCodecs: "dvh1.20.09/db4h",
+            videoLayoutDescriptor: .immersive180
+        ),
+        Variant(
+            bandwidth: 4_000_000,
+            resolution: Resolution(width: 1920, height: 1080),
+            uri: "video/1080p_2d.m3u8",
+            codecs: "avc1.640028,mp4a.40.2"
+        )
+    ],
+    independentSegments: true
+)
+
+let output = ManifestGenerator().generateMaster(playlist)
+// Contains: SUPPLEMENTAL-CODECS="dvh1.20.09/db4h"
+// Contains: REQ-VIDEO-LAYOUT="CH-STEREO,PROJ-HEQU"
+```
+
+---
+
+## Quick Start — IMSC1 Subtitles
+
+Parse a TTML file and segment it into fMP4 for HLS delivery:
+
+```swift
+import HLSKit
+
+let xml = """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml">
+      <body><div>
+        <p begin="00:00:01.000" end="00:00:04.000">Hello world</p>
+      </div></body>
+    </tt>
+    """
+
+let document = try IMSC1Parser.parse(xml: xml)
+let segmenter = IMSC1Segmenter()
+let initSegment = segmenter.createInitSegment(language: "eng", timescale: 1000)
+let mediaSegment = segmenter.createMediaSegment(
+    document: document, sequenceNumber: 1, baseDecodeTime: 0, duration: 6000
+)
+```
+
+---
+
+## Quick Start — Transport-Aware Pipeline
+
+Monitor transport quality and adjust bitrate automatically:
+
+```swift
+import HLSKit
+
+var config = LivePipelineConfiguration()
+config.transportPolicy = TransportAwarePipelinePolicy(
+    autoAdjustBitrate: true,
+    minimumQualityGrade: .fair,
+    abrResponsiveness: .responsive
+)
+
+let pipeline = LivePipeline()
+try await pipeline.start(configuration: config)
+
+for await event in pipeline.events {
+    if case .transportQualityDegraded(let dest, let quality) = event {
+        print("\(dest) degraded: \(quality.grade)")
+    }
+}
 ```
 
 ---
@@ -326,9 +424,11 @@ Sources/
 │   ├── DRM/                    # LiveDRMPipeline, FairPlayLiveConfig, LiveKeyManager, CENCConfig
 │   ├── Accessibility/          # AccessibilityRenditionGenerator, ClosedCaptionConfig, LiveWebVTTWriter
 │   ├── Resilience/             # FailoverManager, RedundantStreamConfig, GapHandler, ContentSteering
+│   ├── Subtitles/              # IMSC1Parser, IMSC1Renderer, IMSC1Segmenter
+│   ├── Spatial/                # MVHEVCPackager, MVHEVCSampleProcessor, SpatialVideoConfiguration
 │   ├── LivePipeline/           # LivePipeline, LivePipelineConfiguration, LivePipelineState
 │   ├── Engine/                 # HLSEngine facade
-│   └── Documentation.docc/     # 26 DocC articles
+│   └── Documentation.docc/     # 33 DocC articles
 ├── HLSKitCommands/             # CLI command implementations
 └── HLSKitCLI/                  # CLI entry point (@main)
 ```
@@ -376,6 +476,15 @@ hlskit-cli live stop
 hlskit-cli live stats
 hlskit-cli live convert-to-vod --input /tmp/live/ --output /tmp/vod/
 hlskit-cli live metadata --key title --value "Episode 42"
+
+# IMSC1 subtitles
+hlskit-cli imsc1 parse subtitles.ttml
+hlskit-cli imsc1 render subtitles.ttml --output rendered.ttml
+hlskit-cli imsc1 segment subtitles.ttml --output /tmp/subs/ --language eng
+
+# MV-HEVC spatial video
+hlskit-cli mvhevc package input.hevc -o /tmp/spatial/ --layout stereo --width 3840 --height 2160
+hlskit-cli mvhevc info init.mp4
 ```
 
 ### Commands
@@ -390,6 +499,8 @@ hlskit-cli live metadata --key title --value "Episode 42"
 | `manifest` | Parse or generate M3U8 manifests (2 subcommands: `parse`, `generate`) |
 | `iframe` | Generate I-Frame playlists for trick play |
 | `live` | Live streaming pipeline (5 subcommands: `start`, `stop`, `stats`, `convert-to-vod`, `metadata`) |
+| `imsc1` | IMSC1 subtitle pipeline (3 subcommands: `parse`, `render`, `segment`) |
+| `mvhevc` | MV-HEVC spatial video (2 subcommands: `package`, `info`) |
 
 ---
 
@@ -426,10 +537,12 @@ The project includes a comprehensive test suite using Swift Testing (`import Tes
 | LivePipeline | Pipeline lifecycle, presets, statistics, components |
 | Engine | HLSEngine facade, segmentation, encryption, manifest ops |
 | Showcase | Public API demonstrations (executable documentation) |
-| CLI | All 8 commands, argument parsing, integration |
+| CLI | All 10 commands, argument parsing, integration |
 | EndToEnd | Cross-feature integration scenarios |
 
-4478 tests across 526 suites. All tests run on macOS in CI. No XCTest — 100% Swift Testing.
+5,127 tests across 610 suites. All tests run on macOS in CI. No XCTest — 100% Swift Testing.
+
+The project also includes `Scripts/mock-hls-server.py` (a Python-based test server with 5 modes) and `Scripts/run-cli-scenarios.sh` (an automated 38-scenario CLI regression runner).
 
 ---
 
@@ -437,7 +550,7 @@ The project includes a comprehensive test suite using Swift Testing (`import Tes
 
 Full API documentation is available as a DocC catalog bundled with the package. Open the project in Xcode and select **Product > Build Documentation** to browse it locally.
 
-The catalog includes 26 guides:
+The catalog includes 33 guides:
 
 | Guide | Content |
 |-------|---------|
@@ -450,7 +563,7 @@ The catalog includes 26 guides:
 | Cloud Transcoding | ManagedTranscoder, Cloudflare/AWS/Mux providers, streaming upload |
 | Encrypting Segments | AES-128, SAMPLE-AES, KeyManager, EncryptedPlaylistBuilder, key rotation |
 | HLSEngine | High-level facade for end-to-end workflows |
-| CLI Reference | 8 commands with options, examples, JSON config |
+| CLI Reference | 10 commands with options, examples, JSON config |
 | Live Streaming | Pipeline architecture overview and use cases |
 | Live Encoding | MediaSource, LiveEncoder, audio/video encoding, multi-bitrate |
 | Live Segmentation | AudioSegmenter, VideoSegmenter, CMAFWriter, CMAF fMP4 |
@@ -466,6 +579,13 @@ The catalog includes 26 guides:
 | Live DRM | FairPlay Streaming, key rotation, multi-DRM (CENC) |
 | Accessibility & Resilience | Captions, subtitles, failover, gap signaling |
 | Live Presets | Pipeline presets and composition |
+| Transport Contracts v2 | Quality monitoring, ABR, RTMP/SRT/Icecast v2 |
+| Transport-Aware Pipeline | Pipeline integration with transport quality |
+| Variable Substitution | EXT-X-DEFINE, CDN templating, validation |
+| IMSC1 Subtitles Guide | TTML parse, render, fMP4 segment |
+| Spatial Video Guide | MV-HEVC packaging for Apple Vision Pro |
+| Video Projection Specifiers | REQ-VIDEO-LAYOUT, 360°, Apple Immersive |
+| Testing Guide | Test suite, mock server, CLI scenarios |
 
 ---
 

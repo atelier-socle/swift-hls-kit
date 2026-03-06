@@ -191,7 +191,7 @@ extension LivePipelineConfiguration {
     /// - Audio: AAC 128 kbps, 48 kHz, stereo
     /// - Segments: 6s, fMP4
     /// - Playlist: sliding window (5 segments)
-    /// - Caller adds RTMP destinations via ``LivePipeline/addDestination(_:id:)``
+    /// - Caller adds RTMP destinations via `LivePipeline.addDestination(_:id:)`
     ///
     /// HLS tags generated:
     /// ```

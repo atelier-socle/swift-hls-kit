@@ -116,7 +116,7 @@ public struct RTMPPusherConfiguration: Sendable, Equatable {
     /// Instagram Live configuration.
     ///
     /// Uses RTMPS ingest at `live-upload.instagram.com`.
-    /// Mirrors RTMPKit 0.2.0 ``PlatformPreset/instagram``.
+    /// Mirrors RTMPKit 0.2.0 `PlatformPreset.instagram`.
     ///
     /// - Parameter streamKey: Instagram stream key.
     /// - Returns: Configuration for Instagram RTMPS ingest.
@@ -132,7 +132,7 @@ public struct RTMPPusherConfiguration: Sendable, Equatable {
     /// TikTok Live configuration.
     ///
     /// Uses RTMPS ingest at `push.tiktok.com`.
-    /// Mirrors RTMPKit 0.2.0 ``PlatformPreset/tiktok``.
+    /// Mirrors RTMPKit 0.2.0 `PlatformPreset.tiktok`.
     ///
     /// - Parameter streamKey: TikTok stream key.
     /// - Returns: Configuration for TikTok RTMPS ingest.
@@ -148,7 +148,7 @@ public struct RTMPPusherConfiguration: Sendable, Equatable {
     /// Twitter/X Live configuration.
     ///
     /// Uses RTMPS ingest via Periscope infrastructure.
-    /// Mirrors RTMPKit 0.2.0 ``PlatformPreset/twitter``.
+    /// Mirrors RTMPKit 0.2.0 `PlatformPreset.twitter`.
     ///
     /// - Parameter streamKey: Twitter/X stream key.
     /// - Returns: Configuration for Twitter RTMPS ingest.
@@ -164,7 +164,7 @@ public struct RTMPPusherConfiguration: Sendable, Equatable {
     /// Rumble Live configuration.
     ///
     /// Uses RTMP (non-TLS) ingest at `publish.rumble.com`.
-    /// Mirrors RTMPKit 0.2.0 ``PlatformPreset/rumble``.
+    /// Mirrors RTMPKit 0.2.0 `PlatformPreset.rumble`.
     ///
     /// - Parameter streamKey: Rumble stream key.
     /// - Returns: Configuration for Rumble RTMP ingest.
@@ -180,7 +180,7 @@ public struct RTMPPusherConfiguration: Sendable, Equatable {
     /// Kick Live configuration.
     ///
     /// Uses RTMP ingest via global CDN.
-    /// Mirrors RTMPKit 0.2.0 ``PlatformPreset/kick``.
+    /// Mirrors RTMPKit 0.2.0 `PlatformPreset.kick`.
     ///
     /// - Parameter streamKey: Kick stream key.
     /// - Returns: Configuration for Kick RTMP ingest.
@@ -197,7 +197,7 @@ public struct RTMPPusherConfiguration: Sendable, Equatable {
     /// LinkedIn Live configuration.
     ///
     /// Uses RTMPS ingest at `livein.linkedin.com`.
-    /// Mirrors RTMPKit 0.2.0 ``PlatformPreset/linkedin``.
+    /// Mirrors RTMPKit 0.2.0 `PlatformPreset.linkedin`.
     ///
     /// - Parameter streamKey: LinkedIn stream key.
     /// - Returns: Configuration for LinkedIn RTMPS ingest.
@@ -213,7 +213,7 @@ public struct RTMPPusherConfiguration: Sendable, Equatable {
     /// Trovo Live configuration.
     ///
     /// Uses RTMP (non-TLS) ingest at `livepush.trovo.live`.
-    /// Mirrors RTMPKit 0.2.0 ``PlatformPreset/trovo``.
+    /// Mirrors RTMPKit 0.2.0 `PlatformPreset.trovo`.
     ///
     /// - Parameter streamKey: Trovo stream key.
     /// - Returns: Configuration for Trovo RTMP ingest.

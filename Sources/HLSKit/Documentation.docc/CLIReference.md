@@ -8,7 +8,7 @@ Run HLS workflows from the command line with `hlskit-cli`.
 
 ## Overview
 
-HLSKit includes a command-line tool with 8 commands for common HLS operations. Install it via Swift Package Manager:
+HLSKit includes a command-line tool with 10 commands for common HLS operations. Install it via Swift Package Manager:
 
 ```bash
 swift build -c release
@@ -29,6 +29,8 @@ The CLI requires the `HLSKitCommands` library, which depends on `swift-argument-
 | `manifest` | Parse or generate M3U8 manifests |
 | `live` | Live streaming pipeline management |
 | `iframe` | Generate I-frame only playlists |
+| `imsc1` | Parse, render, or segment IMSC1 TTML subtitles |
+| `mvhevc` | Package or inspect MV-HEVC spatial video |
 
 ---
 
@@ -307,9 +309,100 @@ hlskit-cli iframe --input stream.m3u8 --output iframe.m3u8 --quiet --output-form
 | `--quiet` | `false` | Suppress output |
 | `--output-format` | `text` | Output format: `text` or `json` |
 
+---
+
+### imsc1
+
+Parse, render, or segment IMSC1 TTML subtitle files. This command has three subcommands for the full IMSC1 pipeline.
+
+#### imsc1 parse
+
+Parse a TTML file and display its contents:
+
+```bash
+hlskit-cli imsc1 parse subtitles.ttml
+hlskit-cli imsc1 parse subtitles.ttml --output-format json
+```
+
+#### imsc1 render
+
+Render an IMSC1 document to standards-compliant TTML XML:
+
+```bash
+hlskit-cli imsc1 render subtitles.ttml --output rendered.ttml
+```
+
+#### imsc1 segment
+
+Segment a TTML file into fMP4 segments for HLS delivery:
+
+```bash
+hlskit-cli imsc1 segment subtitles.ttml --output /tmp/subs/ --language eng --timescale 1000
+hlskit-cli imsc1 segment subtitles.ttml --output /tmp/subs/ --duration 6.0
+```
+
+**Subcommands:**
+
+| Subcommand | Description |
+|------------|-------------|
+| `parse` | Parse TTML and display subtitle cues |
+| `render` | Render to standards-compliant TTML XML |
+| `segment` | Package into fMP4 segments with init segment |
+
+---
+
+### mvhevc
+
+Package or inspect MV-HEVC stereoscopic video for Apple Vision Pro.
+
+#### mvhevc package
+
+Package an MV-HEVC bitstream (Annex B format) into fMP4 init and media segments with spatial video boxes (vexu, stri, hero):
+
+```bash
+# Default: stereo, 1920x1080, 30fps, 6s segments
+hlskit-cli mvhevc package input.hevc -o /tmp/spatial/
+
+# Custom dimensions and frame rate
+hlskit-cli mvhevc package input.hevc -o /tmp/spatial/ \
+    --layout stereo --frame-rate 30 --width 3840 --height 2160
+
+# Mono layout with shorter segments
+hlskit-cli mvhevc package input.hevc -o /tmp/spatial/ --layout mono --segment-duration 4.0
+```
+
+**Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-o, --output-directory` | (required) | Output directory for segments |
+| `--layout` | `stereo` | Channel layout: `stereo` or `mono` |
+| `--segment-duration` | `6.0` | Segment duration in seconds |
+| `--frame-rate` | `30.0` | Frame rate |
+| `--width` | `1920` | Video width |
+| `--height` | `1080` | Video height |
+
+#### mvhevc info
+
+Inspect an fMP4 file for MV-HEVC spatial video boxes (vexu, eyes, stri, hero, hvcC):
+
+```bash
+hlskit-cli mvhevc info init.mp4
+hlskit-cli mvhevc info init.mp4 --output-format json
+```
+
+**Subcommands:**
+
+| Subcommand | Description |
+|------------|-------------|
+| `package` | Package HEVC bitstream into fMP4 segments with spatial boxes |
+| `info` | Inspect fMP4 for MV-HEVC spatial video boxes |
+
 ## Next Steps
 
 - <doc:GettingStarted> — Use HLSKit as a Swift library
 - <doc:HLSEngine> — Programmatic API for the same workflows
 - <doc:LiveStreaming> — Live streaming architecture
 - <doc:IFramePlaylists> — I-frame playlist generation API
+- <doc:IMSC1SubtitlesGuide> — IMSC1 subtitle pipeline
+- <doc:SpatialVideoGuide> — MV-HEVC spatial video packaging
