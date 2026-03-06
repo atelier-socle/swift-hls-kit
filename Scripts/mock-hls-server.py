@@ -1118,21 +1118,21 @@ class HLSHandler(BaseHTTPRequestHandler):
                 )
                 return
 
-        # ── Static manifests ──
-        if path in MANIFESTS:
-            ct = mime_type(path)
-            if path.endswith(".json"):
-                ct = "application/json"
-            self._send_content(MANIFESTS[path], ct, path)
-            return
-
-        # ── Variable substitution with query params ──
+        # ── Variable substitution with query params (before static lookup) ──
         if path == "/var/media.m3u8":
             content = MANIFESTS.get("/var/media.m3u8", "")
             token = query.get("token", [""])[0]
             if token:
                 content = content.replace("{$token}", token)
             self._send_content(content, mime_type(path), path)
+            return
+
+        # ── Static manifests ──
+        if path in MANIFESTS:
+            ct = mime_type(path)
+            if path.endswith(".json"):
+                ct = "application/json"
+            self._send_content(MANIFESTS[path], ct, path)
             return
 
         # ── TTML sample ──

@@ -102,21 +102,21 @@ extension InfoCommand {
             "type": "HLS Master Playlist",
             "variantCount": master.variants.count,
             "variants": master.variants.enumerated()
-                .map { variantJSON($1, index: $0 + 1) }
+                .map { formatVariantJSON($1, index: $0 + 1) }
         ]
         if let v = master.version {
             dict["version"] = v.rawValue
         }
         if !master.definitions.isEmpty {
-            dict["definitions"] = definitionsJSON(
+            dict["definitions"] = formatDefinitionsJSON(
                 master.definitions
             )
         }
         if !master.renditions.isEmpty {
             dict["renditions"] = master.renditions
-                .map { renditionJSON($0) }
+                .map { formatRenditionJSON($0) }
         }
-        printJSON(dict)
+        printFormattedJSON(dict)
     }
 
     private func displayMasterInfoText(
@@ -132,15 +132,21 @@ extension InfoCommand {
         if let version = master.version {
             pairs.append(("Version:", "\(version.rawValue)"))
         }
-        appendDefinitionPairs(
+        appendSessionKeyDisplayPairs(
+            master.sessionKeys, to: &pairs
+        )
+        appendContentSteeringDisplayPair(
+            master.contentSteering, to: &pairs
+        )
+        appendDefinitionDisplayPairs(
             master.definitions, to: &pairs
         )
         for (index, variant) in master.variants.enumerated() {
             pairs.append(
-                ("  \(index + 1).", variantDetail(variant))
+                ("  \(index + 1).", infoVariantDetail(variant))
             )
         }
-        appendRenditionPairs(
+        appendRenditionDisplayPairs(
             master.renditions, to: &pairs
         )
         print(formatter.formatKeyValues(pairs))
@@ -183,11 +189,11 @@ extension InfoCommand {
             dict["playlistType"] = pt.rawValue
         }
         if !media.definitions.isEmpty {
-            dict["definitions"] = definitionsJSON(
+            dict["definitions"] = formatDefinitionsJSON(
                 media.definitions
             )
         }
-        printJSON(dict)
+        printFormattedJSON(dict)
     }
 
     private func displayMediaInfoText(
@@ -210,7 +216,13 @@ extension InfoCommand {
         if let pType = media.playlistType {
             pairs.append(("Playlist type:", pType.rawValue))
         }
-        appendDefinitionPairs(
+        if media.iFramesOnly {
+            pairs.append(("I-Frames Only:", "Yes"))
+        }
+        appendEncryptionDisplayPairs(
+            media.segments, to: &pairs
+        )
+        appendDefinitionDisplayPairs(
             media.definitions, to: &pairs
         )
         pairs.append(
@@ -236,30 +248,7 @@ extension InfoCommand {
         let info = try parser.parseFileInfo(from: boxes)
 
         if formatter == .json {
-            printJSON(
-                [
-                    "file": url.lastPathComponent,
-                    "type": "MP4 container",
-                    "duration": String(
-                        format: "%.1fs", info.durationSeconds
-                    ),
-                    "brands": info.brands.joined(
-                        separator: ", "
-                    ),
-                    "trackCount": info.tracks.count,
-                    "tracks": info.tracks.map { t in
-                        var d: [String: Any] = [
-                            "index": t.trackId,
-                            "type": t.mediaType.rawValue,
-                            "codec": t.codec
-                        ]
-                        if let dims = t.dimensions {
-                            d["dimensions"] =
-                                "\(dims.width)x\(dims.height)"
-                        }
-                        return d
-                    }
-                ] as [String: Any])
+            printFormattedJSON(mp4InfoJSON(info, url: url))
             return
         }
 
@@ -277,9 +266,8 @@ extension InfoCommand {
         ]
 
         for track in info.tracks {
-            let typeStr = track.mediaType.rawValue
-            let codec = track.codec
-            var detail = "\(typeStr) — \(codec)"
+            var detail =
+                "\(track.mediaType.rawValue) — \(track.codec)"
             if let dims = track.dimensions {
                 detail += " \(dims.width)x\(dims.height)"
             }
@@ -287,6 +275,32 @@ extension InfoCommand {
         }
 
         print(formatter.formatKeyValues(pairs))
+    }
+
+    private func mp4InfoJSON(
+        _ info: MP4FileInfo, url: URL
+    ) -> [String: Any] {
+        [
+            "file": url.lastPathComponent,
+            "type": "MP4 container",
+            "duration": String(
+                format: "%.1fs", info.durationSeconds
+            ),
+            "brands": info.brands.joined(separator: ", "),
+            "trackCount": info.tracks.count,
+            "tracks": info.tracks.map { t in
+                var d: [String: Any] = [
+                    "index": t.trackId,
+                    "type": t.mediaType.rawValue,
+                    "codec": t.codec
+                ]
+                if let dims = t.dimensions {
+                    d["dimensions"] =
+                        "\(dims.width)x\(dims.height)"
+                }
+                return d
+            }
+        ] as [String: Any]
     }
 }
 
@@ -312,7 +326,7 @@ extension InfoCommand {
         }
 
         if formatter == .json {
-            printJSON(
+            printFormattedJSON(
                 [
                     "directory": url.lastPathComponent,
                     "playlistCount": m3u8Files.count,
@@ -380,58 +394,14 @@ extension InfoCommand {
 
 extension InfoCommand {
 
-    private func variantJSON(
-        _ v: Variant, index: Int
-    ) -> [String: Any] {
-        var entry: [String: Any] = [
-            "index": index,
-            "resolution": v.resolution.map {
-                "\($0.width)x\($0.height)"
-            } ?? "audio",
-            "bandwidth": v.bandwidth,
-            "uri": v.uri
-        ]
-        if let sc = v.supplementalCodecs {
-            entry["supplementalCodecs"] = sc
-        }
-        if let vld = v.videoLayoutDescriptor {
-            entry["videoLayout"] = vld.attributeValue
-        }
-        return entry
-    }
-
-    private func renditionJSON(
-        _ r: Rendition
-    ) -> [String: Any] {
-        var entry: [String: Any] = [
-            "name": r.name,
-            "type": r.type.rawValue,
-            "groupId": r.groupId
-        ]
-        if let codec = r.codec {
-            entry["codec"] = codec
-        }
-        return entry
-    }
-
-    private func definitionsJSON(
-        _ definitions: [VariableDefinition]
-    ) -> [[String: Any]] {
-        definitions.map { d in
-            [
-                "name": d.name,
-                "value": d.value,
-                "type": d.type.rawValue
-            ]
-        }
-    }
-
-    private func variantDetail(_ variant: Variant) -> String {
+    private func infoVariantDetail(
+        _ variant: Variant
+    ) -> String {
         let res =
             variant.resolution.map {
                 "\($0.width)x\($0.height)"
             } ?? "audio"
-        let bw = formatBitrate(variant.bandwidth)
+        let bw = formatBitrateDisplay(variant.bandwidth)
         var detail = "\(res) @ \(bw) (\(variant.uri))"
         if let sc = variant.supplementalCodecs {
             detail += " SUPPLEMENTAL-CODECS=\(sc)"
@@ -441,74 +411,6 @@ extension InfoCommand {
                 " REQ-VIDEO-LAYOUT=\(vld.attributeValue)"
         }
         return detail
-    }
-
-    private func appendDefinitionPairs(
-        _ definitions: [VariableDefinition],
-        to pairs: inout [(String, String)]
-    ) {
-        guard !definitions.isEmpty else { return }
-        pairs.append(
-            ("Definitions:", "\(definitions.count)")
-        )
-        for def in definitions {
-            pairs.append(
-                ("  Define:", formatDefinitionLabel(def))
-            )
-        }
-    }
-
-    private func appendRenditionPairs(
-        _ renditions: [Rendition],
-        to pairs: inout [(String, String)]
-    ) {
-        guard !renditions.isEmpty else { return }
-        for rendition in renditions {
-            var detail =
-                "\(rendition.type.rawValue) "
-                + "\"\(rendition.name)\""
-            if let codec = rendition.codec {
-                detail += " CODECS=\(codec)"
-            }
-            pairs.append(("  Rendition:", detail))
-        }
-    }
-
-    private func formatDefinitionLabel(
-        _ def: VariableDefinition
-    ) -> String {
-        switch def.type {
-        case .value:
-            return "\(def.name)=\"\(def.value)\""
-        case .import:
-            return "IMPORT=\"\(def.name)\""
-        case .queryParam:
-            return "QUERYPARAM=\"\(def.name)\""
-        }
-    }
-
-    private func formatBitrate(_ bps: Int) -> String {
-        if bps >= 1_000_000 {
-            return String(
-                format: "%.1f Mbps", Double(bps) / 1_000_000.0
-            )
-        }
-        return String(
-            format: "%.0f kbps", Double(bps) / 1_000.0
-        )
-    }
-
-    func printJSON(_ object: Any) {
-        guard
-            let data = try? JSONSerialization.data(
-                withJSONObject: object,
-                options: [.prettyPrinted, .sortedKeys]
-            ),
-            let str = String(data: data, encoding: .utf8)
-        else {
-            return
-        }
-        print(str)
     }
 
     private func printErr(_ message: String) {

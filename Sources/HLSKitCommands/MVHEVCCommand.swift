@@ -432,16 +432,51 @@ private func searchBoxes(
     _ boxes: [MP4Box], info: inout SpatialBoxInfo
 ) {
     for box in boxes {
-        switch box.type {
-        case "vexu": info.hasVexu = true
-        case "eyes": info.hasEyes = true
-        case "stri": info.hasStri = true
-        case "hero": info.hasHero = true
-        case "hvcC": info.hasHvcC = true
-        default: break
-        }
+        matchSpatialBoxType(box.type, info: &info)
         if !box.children.isEmpty {
             searchBoxes(box.children, info: &info)
         }
+        // stsd and hvc1 are not in containerTypes, so their
+        // children (vexu/stri/hero/hvcC) are embedded in
+        // raw payload. Scan payloads to detect them.
+        if let payload = box.payload {
+            scanPayloadForSpatialBoxes(
+                payload, info: &info
+            )
+        }
+    }
+}
+
+private func matchSpatialBoxType(
+    _ type: String, info: inout SpatialBoxInfo
+) {
+    switch type {
+    case "vexu": info.hasVexu = true
+    case "eyes": info.hasEyes = true
+    case "stri": info.hasStri = true
+    case "hero": info.hasHero = true
+    case "hvcC": info.hasHvcC = true
+    default: break
+    }
+}
+
+/// Scans raw payload data for spatial box FourCC patterns.
+///
+/// The ISOBMFF box reader treats `stsd` and `hvc1` as leaf
+/// boxes (they have prefix fields before children), so their
+/// sub-boxes are not parsed into the box tree. This function
+/// detects spatial FourCC codes in the raw payload bytes.
+private func scanPayloadForSpatialBoxes(
+    _ data: Data, info: inout SpatialBoxInfo
+) {
+    let targets: [Data] = [
+        Data("vexu".utf8), Data("eyes".utf8),
+        Data("stri".utf8), Data("hero".utf8),
+        Data("hvcC".utf8)
+    ]
+    for target in targets where data.range(of: target) != nil {
+        let name =
+            String(data: target, encoding: .utf8) ?? ""
+        matchSpatialBoxType(name, info: &info)
     }
 }

@@ -243,7 +243,7 @@
                     return d
                 }
             ]
-            printJSON(dict)
+            printFormattedJSON(dict)
         }
 
         private func formatBitrateValue(

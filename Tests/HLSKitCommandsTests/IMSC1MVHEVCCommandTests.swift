@@ -318,6 +318,82 @@ struct MVHEVCCommandTests {
     }
 }
 
+// MARK: - Spatial Box Detection Tests (P0 Bug Fix)
+
+@Suite(
+    "findSpatialBoxes — Payload Scanning Fix",
+    .timeLimit(.minutes(1))
+)
+struct SpatialBoxDetectionTests {
+
+    /// Minimal valid parameter sets for testing.
+    private var testParameterSets: HEVCParameterSets {
+        var sps = Data(count: 15)
+        sps[0] = 0x42
+        sps[1] = 0x01
+        sps[2] = 0x01
+        sps[3] = 0x42
+        sps[4] = 0x20
+        sps[14] = 123
+        return HEVCParameterSets(
+            vps: Data([0x40, 0x01, 0xAA, 0xBB]),
+            sps: sps,
+            pps: Data([0x44, 0x01, 0xCC])
+        )
+    }
+
+    @Test("Detects vexu in packager init segment")
+    func detectsVexu() throws {
+        let info = try parseSpatialBoxes()
+        #expect(info.hasVexu)
+    }
+
+    @Test("Detects stri in packager init segment")
+    func detectsStri() throws {
+        let info = try parseSpatialBoxes()
+        #expect(info.hasStri)
+    }
+
+    @Test("Detects hero in packager init segment")
+    func detectsHero() throws {
+        let info = try parseSpatialBoxes()
+        #expect(info.hasHero)
+    }
+
+    @Test("Detects hvcC in packager init segment")
+    func detectsHvcC() throws {
+        let info = try parseSpatialBoxes()
+        #expect(info.hasHvcC)
+    }
+
+    @Test("Non-spatial MP4 reports no spatial boxes")
+    func nonSpatialMP4() throws {
+        var data = Data()
+        data.append(buildTestFtypBox())
+        data.append(buildTestMinimalMoov())
+
+        let reader = MP4BoxReader()
+        let boxes = try reader.readBoxes(from: data)
+        let info = findSpatialBoxes(in: boxes)
+
+        #expect(!info.hasVexu)
+        #expect(!info.hasStri)
+        #expect(!info.hasHero)
+    }
+
+    private func parseSpatialBoxes() throws -> SpatialBoxInfo {
+        let packager = MVHEVCPackager()
+        let config = SpatialVideoConfiguration.visionProStandard
+        let initData = packager.createInitSegment(
+            configuration: config,
+            parameterSets: testParameterSets
+        )
+        let reader = MP4BoxReader()
+        let boxes = try reader.readBoxes(from: initData)
+        return findSpatialBoxes(in: boxes)
+    }
+}
+
 // MARK: - Helpers
 
 private let ttmlContent = """
