@@ -2,6 +2,9 @@
 // Copyright 2026 Atelier Socle SAS
 
 import Foundation
+#if canImport(FoundationXML)
+    import FoundationXML
+#endif
 
 // MARK: - IMSC1Error
 
