@@ -12,10 +12,10 @@ import Testing
 @Suite("CLI Showcase — Root Command")
 struct CLIRootShowcase {
 
-    @Test("HLSKitCommand — has 8 subcommands")
+    @Test("HLSKitCommand — has 10 subcommands")
     func subcommands() {
         let subs = HLSKitCommand.configuration.subcommands
-        #expect(subs.count == 8)
+        #expect(subs.count == 10)
     }
 
     @Test("HLSKitCommand — command name is 'hlskit-cli'")

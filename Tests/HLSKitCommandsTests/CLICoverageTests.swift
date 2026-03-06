@@ -73,15 +73,15 @@ struct HLSKitCommandRootTests {
         _ = cmd
     }
 
-    @Test("Root command configuration has 8 subcommands")
+    @Test("Root command configuration has 10 subcommands")
     func subcommandCount() {
         let config = HLSKitCommand.configuration
-        #expect(config.subcommands.count == 8)
+        #expect(config.subcommands.count == 10)
     }
 
-    @Test("Root command version is 0.3.0")
+    @Test("Root command version is 0.4.0")
     func version() {
-        #expect(HLSKitCommand.configuration.version == "0.3.0")
+        #expect(HLSKitCommand.configuration.version == "0.4.0")
     }
 
     @Test("Root command name is hlskit-cli")

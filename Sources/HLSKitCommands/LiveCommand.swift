@@ -101,6 +101,12 @@ struct LiveStartCommand: AsyncParsableCommand {
     )
     var dvrHours: Double?
 
+    @Option(
+        name: .long,
+        help: "Transport policy: disabled, conservative, responsive, immediate"
+    )
+    var transportPolicy: String?
+
     @Flag(name: .long, help: "Suppress output")
     var quiet: Bool = false
 
@@ -185,7 +191,36 @@ struct LiveStartCommand: AsyncParsableCommand {
                 pipeline.dvrWindowDuration = hours * 3600
             }
         }
+        if let tp = transportPolicy {
+            pipeline.transportPolicy =
+                parseTransportPolicy(tp)
+        }
         return pipeline
+    }
+
+    private func parseTransportPolicy(
+        _ string: String
+    ) -> TransportAwarePipelinePolicy? {
+        switch string.lowercased() {
+        case "conservative":
+            return TransportAwarePipelinePolicy(
+                autoAdjustBitrate: true,
+                minimumQualityGrade: .poor,
+                abrResponsiveness: .conservative
+            )
+        case "responsive":
+            return .default
+        case "immediate":
+            return TransportAwarePipelinePolicy(
+                autoAdjustBitrate: true,
+                minimumQualityGrade: .poor,
+                abrResponsiveness: .immediate
+            )
+        case "disabled":
+            return .disabled
+        default:
+            return nil
+        }
     }
 
     private func parseContainerFormat(

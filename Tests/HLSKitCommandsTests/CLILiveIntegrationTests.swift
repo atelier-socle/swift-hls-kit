@@ -11,10 +11,10 @@ import Testing
 @Suite("CLI Live — Integration Tests")
 struct CLILiveIntegrationTests {
 
-    @Test("HLSKitCommand has 8 subcommands")
+    @Test("HLSKitCommand has 10 subcommands")
     func rootSubcommandCount() {
         let subs = HLSKitCommand.configuration.subcommands
-        #expect(subs.count == 8)
+        #expect(subs.count == 10)
     }
 
     @Test("LiveCommand has 5 subcommands")

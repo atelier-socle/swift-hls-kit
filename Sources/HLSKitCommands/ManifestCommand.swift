@@ -94,14 +94,32 @@ struct ManifestGenerateCommand: AsyncParsableCommand {
                 uri: v.uri,
                 averageBandwidth: v.averageBandwidth,
                 codecs: v.codecs,
-                frameRate: v.frameRate
+                frameRate: v.frameRate,
+                supplementalCodecs: v.supplementalCodecs,
+                videoLayoutDescriptor:
+                    v.videoLayoutDescriptor.map {
+                        VideoLayoutDescriptor.parse($0)
+                    }
+            )
+        }
+        let definitions = (config.definitions ?? []).map {
+            $0.toVariableDefinition()
+        }
+        let renditions = (config.renditions ?? []).map { r in
+            Rendition(
+                type: MediaType(rawValue: r.type) ?? .audio,
+                groupId: r.groupId,
+                name: r.name,
+                codec: r.codec
             )
         }
         return MasterPlaylist(
             version: config.version.flatMap {
                 HLSVersion(rawValue: $0)
             },
-            variants: variants
+            variants: variants,
+            renditions: renditions,
+            definitions: definitions
         )
     }
 
@@ -304,6 +322,8 @@ struct ManifestGenerateCommand: AsyncParsableCommand {
 struct ManifestConfig: Codable, Sendable {
     let version: Int?
     let variants: [VariantConfig]
+    let definitions: [DefinitionConfig]?
+    let renditions: [RenditionConfig]?
 
     struct VariantConfig: Codable, Sendable {
         let bandwidth: Int
@@ -312,5 +332,34 @@ struct ManifestConfig: Codable, Sendable {
         let codecs: String?
         let resolution: Resolution?
         let frameRate: Double?
+        let supplementalCodecs: String?
+        let videoLayoutDescriptor: String?
+    }
+
+    struct DefinitionConfig: Codable, Sendable {
+        let name: String?
+        let value: String?
+        let `import`: String?
+        let queryParam: String?
+
+        func toVariableDefinition() -> VariableDefinition {
+            if let importName = self.import {
+                return VariableDefinition(import: importName)
+            }
+            if let qp = queryParam {
+                return VariableDefinition(queryParam: qp)
+            }
+            return VariableDefinition(
+                name: name ?? "",
+                value: value ?? ""
+            )
+        }
+    }
+
+    struct RenditionConfig: Codable, Sendable {
+        let type: String
+        let groupId: String
+        let name: String
+        let codec: String?
     }
 }
