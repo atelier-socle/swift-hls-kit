@@ -11,7 +11,7 @@ import Foundation
 public struct TagParser: Sendable {
 
     /// The attribute parser used for key-value attribute lists.
-    private let attributeParser: AttributeParser
+    let attributeParser: AttributeParser
 
     /// Creates a tag parser.
     ///
@@ -435,169 +435,6 @@ extension TagParser {
     }
 }
 
-// MARK: - Low-Latency HLS Tags
-
-extension TagParser {
-
-    /// Parses an `EXT-X-PART` attribute list into a ``PartialSegment``.
-    ///
-    /// - Parameter attributeString: The raw attribute list.
-    /// - Returns: A ``PartialSegment``.
-    /// - Throws: ``ParserError`` if required attributes are missing.
-    public func parsePart(
-        _ attributeString: String
-    ) throws(ParserError) -> PartialSegment {
-        let attrs = attributeParser.parseAttributes(attributeString)
-        let uri = try attributeParser.requiredQuotedString(
-            "URI", from: attrs, tag: "EXT-X-PART"
-        )
-        let duration = try attributeParser.requiredDouble(
-            "DURATION", from: attrs, tag: "EXT-X-PART"
-        )
-
-        var byteRange: ByteRange?
-        if let rangeStr = attributeParser.optionalQuotedString(
-            "BYTERANGE", from: attrs
-        ) {
-            byteRange = try parseByteRange(rangeStr)
-        }
-
-        return PartialSegment(
-            uri: uri,
-            duration: duration,
-            independent: attributeParser.optionalBool(
-                "INDEPENDENT", from: attrs
-            ) ?? false,
-            byteRange: byteRange,
-            isGap: attributeParser.optionalBool(
-                "GAP", from: attrs
-            ) ?? false
-        )
-    }
-
-    /// Parses an `EXT-X-PART-INF` attribute list.
-    ///
-    /// - Parameter attributeString: The raw attribute list.
-    /// - Returns: The part target duration in seconds.
-    /// - Throws: ``ParserError`` if the PART-TARGET attribute is missing.
-    public func parsePartInf(
-        _ attributeString: String
-    ) throws(ParserError) -> Double {
-        let attrs = attributeParser.parseAttributes(attributeString)
-        return try attributeParser.requiredDouble(
-            "PART-TARGET", from: attrs, tag: "EXT-X-PART-INF"
-        )
-    }
-
-    /// Parses an `EXT-X-SERVER-CONTROL` attribute list.
-    ///
-    /// - Parameter attributeString: The raw attribute list.
-    /// - Returns: A ``ServerControl``.
-    public func parseServerControl(
-        _ attributeString: String
-    ) -> ServerControl {
-        let attrs = attributeParser.parseAttributes(attributeString)
-        return ServerControl(
-            canBlockReload: attributeParser.optionalBool(
-                "CAN-BLOCK-RELOAD", from: attrs
-            ) ?? false,
-            canSkipUntil: attributeParser.optionalDouble(
-                "CAN-SKIP-UNTIL", from: attrs
-            ),
-            canSkipDateRanges: attributeParser.optionalBool(
-                "CAN-SKIP-DATERANGES", from: attrs
-            ) ?? false,
-            holdBack: attributeParser.optionalDouble(
-                "HOLD-BACK", from: attrs
-            ),
-            partHoldBack: attributeParser.optionalDouble(
-                "PART-HOLD-BACK", from: attrs
-            )
-        )
-    }
-
-    /// Parses an `EXT-X-PRELOAD-HINT` attribute list.
-    ///
-    /// - Parameter attributeString: The raw attribute list.
-    /// - Returns: A ``PreloadHint``.
-    /// - Throws: ``ParserError`` if required attributes are missing.
-    public func parsePreloadHint(
-        _ attributeString: String
-    ) throws(ParserError) -> PreloadHint {
-        let attrs = attributeParser.parseAttributes(attributeString)
-        let typeRaw = try attributeParser.requiredEnumString(
-            "TYPE", from: attrs, tag: "EXT-X-PRELOAD-HINT"
-        )
-        guard let type = PreloadHintType(rawValue: typeRaw) else {
-            throw .invalidAttributeValue(
-                tag: "EXT-X-PRELOAD-HINT",
-                attribute: "TYPE",
-                value: typeRaw
-            )
-        }
-        let uri = try attributeParser.requiredQuotedString(
-            "URI", from: attrs, tag: "EXT-X-PRELOAD-HINT"
-        )
-        return PreloadHint(
-            type: type,
-            uri: uri,
-            byteRangeStart: attributeParser.optionalInteger(
-                "BYTERANGE-START", from: attrs
-            ),
-            byteRangeLength: attributeParser.optionalInteger(
-                "BYTERANGE-LENGTH", from: attrs
-            )
-        )
-    }
-
-    /// Parses an `EXT-X-RENDITION-REPORT` attribute list.
-    ///
-    /// - Parameter attributeString: The raw attribute list.
-    /// - Returns: A ``RenditionReport``.
-    /// - Throws: ``ParserError`` if the URI attribute is missing.
-    public func parseRenditionReport(
-        _ attributeString: String
-    ) throws(ParserError) -> RenditionReport {
-        let attrs = attributeParser.parseAttributes(attributeString)
-        let uri = try attributeParser.requiredQuotedString(
-            "URI", from: attrs, tag: "EXT-X-RENDITION-REPORT"
-        )
-        return RenditionReport(
-            uri: uri,
-            lastMediaSequence: attributeParser.optionalInteger(
-                "LAST-MSN", from: attrs
-            ),
-            lastPartIndex: attributeParser.optionalInteger(
-                "LAST-PART", from: attrs
-            )
-        )
-    }
-
-    /// Parses an `EXT-X-SKIP` attribute list into a ``SkipInfo``.
-    ///
-    /// - Parameter attributeString: The raw attribute list.
-    /// - Returns: A ``SkipInfo``.
-    /// - Throws: ``ParserError`` if required attributes are missing.
-    public func parseSkip(
-        _ attributeString: String
-    ) throws(ParserError) -> SkipInfo {
-        let attrs = attributeParser.parseAttributes(attributeString)
-        let skipped = try attributeParser.requiredInteger(
-            "SKIPPED-SEGMENTS", from: attrs, tag: "EXT-X-SKIP"
-        )
-        var removedDateRanges: [String] = []
-        if let raw = attributeParser.optionalQuotedString(
-            "RECENTLY-REMOVED-DATERANGES", from: attrs
-        ) {
-            removedDateRanges = raw.split(separator: "\t").map(String.init)
-        }
-        return SkipInfo(
-            skippedSegments: skipped,
-            recentlyRemovedDateRanges: removedDateRanges
-        )
-    }
-}
-
 // MARK: - Common Tags
 
 extension TagParser {
@@ -624,13 +461,20 @@ extension TagParser {
 
     /// Parses an `EXT-X-DEFINE` attribute list.
     ///
+    /// Handles all three forms per RFC 8216bis-20 Section 4.4.3.8:
+    /// - `NAME="x",VALUE="y"` — direct definition
+    /// - `IMPORT="x"` — import from multivariant playlist
+    /// - `QUERYPARAM="x"` — extract from playlist URL query
+    ///
     /// - Parameter attributeString: The raw attribute list.
-    /// - Returns: A ``VariableDefinition``, or `nil` if it's an IMPORT.
+    /// - Returns: A ``VariableDefinition``.
     /// - Throws: ``ParserError`` if the definition is invalid.
     public func parseDefine(
         _ attributeString: String
     ) throws(ParserError) -> VariableDefinition? {
         let attrs = attributeParser.parseAttributes(attributeString)
+
+        // Form 1: NAME="x",VALUE="y"
         if let name = attributeParser.optionalQuotedString(
             "NAME", from: attrs
         ),
@@ -640,7 +484,25 @@ extension TagParser {
         {
             return VariableDefinition(name: name, value: value)
         }
-        // IMPORT definitions are resolved at a higher level
+
+        // Form 2: IMPORT="x"
+        if let imported = attributeParser.optionalQuotedString(
+            "IMPORT", from: attrs
+        ) {
+            return VariableDefinition(
+                name: imported, type: .import
+            )
+        }
+
+        // Form 3: QUERYPARAM="x"
+        if let param = attributeParser.optionalQuotedString(
+            "QUERYPARAM", from: attrs
+        ) {
+            return VariableDefinition(
+                name: param, type: .queryParam
+            )
+        }
+
         return nil
     }
 

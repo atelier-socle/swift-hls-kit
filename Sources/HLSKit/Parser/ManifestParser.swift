@@ -174,7 +174,9 @@ extension ManifestParser {
             )
         }
 
-        return state.buildPlaylist()
+        var playlist = state.buildPlaylist()
+        resolveVariables(in: &playlist)
+        return playlist
     }
 
     private func handleMasterStreamTag(
@@ -315,7 +317,11 @@ extension ManifestParser {
         guard let finalTargetDuration = state.targetDuration else {
             throw .missingRequiredTag("EXT-X-TARGETDURATION")
         }
-        return state.buildPlaylist(targetDuration: finalTargetDuration)
+        var playlist = state.buildPlaylist(
+            targetDuration: finalTargetDuration
+        )
+        resolveVariables(in: &playlist)
+        return playlist
     }
 
     private func processMediaLine(
@@ -519,5 +525,76 @@ extension ManifestParser {
             return index + 1
         }
         return lines.count
+    }
+}
+
+// MARK: - Variable Resolution
+
+extension ManifestParser {
+
+    /// Applies variable substitution to all URI fields in a
+    /// master playlist using its EXT-X-DEFINE definitions.
+    private func resolveVariables(in playlist: inout MasterPlaylist) {
+        let valueDefinitions = playlist.definitions.filter {
+            $0.type == .value
+        }
+        guard !valueDefinitions.isEmpty else { return }
+
+        let resolver = VariableResolver(from: valueDefinitions)
+
+        for i in playlist.variants.indices {
+            playlist.variants[i].uri = resolver.resolve(
+                playlist.variants[i].uri
+            )
+        }
+        for i in playlist.iFrameVariants.indices {
+            playlist.iFrameVariants[i].uri = resolver.resolve(
+                playlist.iFrameVariants[i].uri
+            )
+        }
+        for i in playlist.renditions.indices {
+            if let uri = playlist.renditions[i].uri {
+                playlist.renditions[i].uri = resolver.resolve(uri)
+            }
+        }
+        for i in playlist.sessionKeys.indices {
+            if let uri = playlist.sessionKeys[i].uri {
+                playlist.sessionKeys[i].uri = resolver.resolve(uri)
+            }
+        }
+        for i in playlist.sessionData.indices {
+            if let uri = playlist.sessionData[i].uri {
+                playlist.sessionData[i].uri = resolver.resolve(uri)
+            }
+        }
+    }
+
+    /// Applies variable substitution to all URI fields in a
+    /// media playlist using its EXT-X-DEFINE definitions.
+    private func resolveVariables(in playlist: inout MediaPlaylist) {
+        let valueDefinitions = playlist.definitions.filter {
+            $0.type == .value
+        }
+        guard !valueDefinitions.isEmpty else { return }
+
+        let resolver = VariableResolver(from: valueDefinitions)
+
+        for i in playlist.segments.indices {
+            playlist.segments[i].uri = resolver.resolve(
+                playlist.segments[i].uri
+            )
+            if let key = playlist.segments[i].key,
+                let uri = key.uri
+            {
+                var updatedKey = key
+                updatedKey.uri = resolver.resolve(uri)
+                playlist.segments[i].key = updatedKey
+            }
+            if let map = playlist.segments[i].map {
+                var updatedMap = map
+                updatedMap.uri = resolver.resolve(map.uri)
+                playlist.segments[i].map = updatedMap
+            }
+        }
     }
 }

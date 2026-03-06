@@ -9,6 +9,7 @@ extension IFrameVariant: MasterPlaylistComponent {}
 extension Rendition: MasterPlaylistComponent {}
 extension SessionData: MasterPlaylistComponent {}
 extension ContentSteering: MasterPlaylistComponent {}
+extension VariableDefinition: MasterPlaylistComponent {}
 
 /// A result builder for constructing ``MasterPlaylist`` instances
 /// using a declarative DSL.
@@ -76,6 +77,8 @@ extension MasterPlaylist {
                 self.sessionData.append(data)
             case let steering as ContentSteering:
                 self.contentSteering = steering
+            case let define as VariableDefinition:
+                self.definitions.append(define)
             default:
                 break
             }

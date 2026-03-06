@@ -297,10 +297,11 @@ struct TagParserCommonTests {
         #expect(def?.value == "https://cdn.example.com")
     }
 
-    @Test("Parse EXT-X-DEFINE — IMPORT returns nil")
+    @Test("Parse EXT-X-DEFINE — IMPORT form")
     func defineImport() throws {
         let def = try parser.parseDefine("IMPORT=\"base-url\"")
-        #expect(def == nil)
+        #expect(def?.name == "base-url")
+        #expect(def?.type == .import)
     }
 }
 

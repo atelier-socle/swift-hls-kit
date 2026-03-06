@@ -92,6 +92,7 @@ public struct HLSValidator: Sendable {
         var results: [ValidationResult] = []
         if ruleSet == .rfc8216 || ruleSet == .all {
             results += RFC8216Rules.validate(playlist)
+            results += VariableRules.validate(playlist)
         }
         if ruleSet == .appleHLS || ruleSet == .all {
             results += AppleHLSRules.validate(playlist)
@@ -106,6 +107,7 @@ public struct HLSValidator: Sendable {
         var results: [ValidationResult] = []
         if ruleSet == .rfc8216 || ruleSet == .all {
             results += RFC8216Rules.validate(playlist)
+            results += VariableRules.validate(playlist)
         }
         if ruleSet == .appleHLS || ruleSet == .all {
             results += AppleHLSRules.validate(playlist)

@@ -429,14 +429,29 @@ extension TagWriter {
 
     /// Writes an `EXT-X-DEFINE` tag line.
     ///
+    /// Emits all three forms per RFC 8216bis-20 Section 4.4.3.8:
+    /// - `.value`: `NAME="x",VALUE="y"`
+    /// - `.import`: `IMPORT="x"`
+    /// - `.queryParam`: `QUERYPARAM="x"`
+    ///
     /// - Parameter definition: The variable definition.
     /// - Returns: The formatted tag line.
-    public func writeDefine(_ definition: VariableDefinition) -> String {
-        let attrs: [(String, String)] = [
-            ("NAME", quoted(definition.name)),
-            ("VALUE", quoted(definition.value))
-        ]
-        return "#EXT-X-DEFINE:\(formatAttributes(attrs))"
+    public func writeDefine(
+        _ definition: VariableDefinition
+    ) -> String {
+        switch definition.type {
+        case .value:
+            let attrs: [(String, String)] = [
+                ("NAME", quoted(definition.name)),
+                ("VALUE", quoted(definition.value))
+            ]
+            return "#EXT-X-DEFINE:\(formatAttributes(attrs))"
+        case .import:
+            return "#EXT-X-DEFINE:IMPORT=\(quoted(definition.name))"
+        case .queryParam:
+            return
+                "#EXT-X-DEFINE:QUERYPARAM=\(quoted(definition.name))"
+        }
     }
 }
 

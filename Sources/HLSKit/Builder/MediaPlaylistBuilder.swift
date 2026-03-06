@@ -6,6 +6,7 @@ public protocol MediaPlaylistComponent: Sendable {}
 
 extension Segment: MediaPlaylistComponent {}
 extension DateRange: MediaPlaylistComponent {}
+extension VariableDefinition: MediaPlaylistComponent {}
 
 /// A result builder for constructing ``MediaPlaylist`` instances
 /// using a declarative DSL.
@@ -76,6 +77,8 @@ extension MediaPlaylist {
                 self.segments.append(segment)
             case let dateRange as DateRange:
                 self.dateRanges.append(dateRange)
+            case let define as VariableDefinition:
+                self.definitions.append(define)
             default:
                 break
             }

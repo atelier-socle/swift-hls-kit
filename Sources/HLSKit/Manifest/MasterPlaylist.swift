@@ -181,18 +181,38 @@ public struct StartOffset: Sendable, Hashable, Codable {
 
 /// A variable definition from `EXT-X-DEFINE`.
 ///
-/// Variables allow playlist authors to reduce repetition by defining
-/// named values that can be substituted into attribute values.
-/// See RFC 8216 Section 4.3.5.3.
+/// Three forms per RFC 8216bis-20 Section 4.4.3.8:
+/// - `.value`: `NAME="x",VALUE="y"` — direct definition
+/// - `.import`: `IMPORT="x"` — import from multivariant
+/// - `.queryParam`: `QUERYPARAM="x"` — from playlist URL
+///
+/// Variables are substituted in URIs and attribute values via
+/// `{$name}`.
 public struct VariableDefinition: Sendable, Hashable, Codable {
+
+    /// The form of the EXT-X-DEFINE tag.
+    public enum DefinitionType: String, Sendable, Hashable,
+        Codable, CaseIterable
+    {
+        /// Direct definition: `NAME="x",VALUE="y"`.
+        case value
+        /// Import from multivariant: `IMPORT="x"`.
+        case `import`
+        /// Extract from URL query string: `QUERYPARAM="x"`.
+        case queryParam
+    }
 
     /// The variable name.
     public var name: String
 
-    /// The variable value.
+    /// The variable value. Empty for `.import` and `.queryParam`
+    /// forms until resolved.
     public var value: String
 
-    /// Creates a variable definition.
+    /// The definition type (direct, import, or query parameter).
+    public var type: DefinitionType
+
+    /// Creates a direct variable definition (NAME/VALUE form).
     ///
     /// - Parameters:
     ///   - name: The variable name.
@@ -200,5 +220,66 @@ public struct VariableDefinition: Sendable, Hashable, Codable {
     public init(name: String, value: String) {
         self.name = name
         self.value = value
+        self.type = .value
+    }
+
+    /// Creates a variable definition with an explicit type.
+    ///
+    /// - Parameters:
+    ///   - name: The variable name.
+    ///   - value: The variable value (empty for import/queryParam).
+    ///   - type: The definition type.
+    public init(
+        name: String, value: String = "", type: DefinitionType
+    ) {
+        self.name = name
+        self.value = value
+        self.type = type
+    }
+
+    /// Creates an IMPORT variable definition.
+    ///
+    /// - Parameter importName: The variable name to import from
+    ///   the multivariant playlist.
+    public init(import importName: String) {
+        self.name = importName
+        self.value = ""
+        self.type = .import
+    }
+
+    /// Creates a QUERYPARAM variable definition.
+    ///
+    /// - Parameter queryParam: The URL query parameter name to
+    ///   extract.
+    public init(queryParam: String) {
+        self.name = queryParam
+        self.value = ""
+        self.type = .queryParam
+    }
+
+    /// Decodes a variable definition with backward compatibility.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(
+            keyedBy: CodingKeys.self
+        )
+        self.name = try container.decode(String.self, forKey: .name)
+        self.value = try container.decode(
+            String.self, forKey: .value
+        )
+        self.type =
+            try container.decodeIfPresent(
+                DefinitionType.self, forKey: .type
+            ) ?? .value
     }
 }
+
+/// Convenience alias for ``VariableDefinition`` in builder DSL.
+///
+/// ```swift
+/// let playlist = MasterPlaylist {
+///     Define(name: "base", value: "https://cdn.example.com")
+///     Define(import: "token")
+///     Variant(bandwidth: 800_000, uri: "{$base}/360p.m3u8")
+/// }
+/// ```
+public typealias Define = VariableDefinition
