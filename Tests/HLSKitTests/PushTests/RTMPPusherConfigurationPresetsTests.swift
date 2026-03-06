@@ -112,13 +112,13 @@ struct RTMPPusherConfigurationPresetsTests {
             streamKey: "live_abc"
         )
         #expect(
-            config.serverURL == "rtmp://live.twitch.tv/app"
+            config.serverURL == "rtmps://live.twitch.tv/app"
         )
         #expect(config.streamKey == "live_abc")
         #expect(config.retryPolicy == .aggressive)
         #expect(
             config.fullURL
-                == "rtmp://live.twitch.tv/app/live_abc"
+                == "rtmps://live.twitch.tv/app/live_abc"
         )
     }
 
@@ -129,7 +129,7 @@ struct RTMPPusherConfigurationPresetsTests {
         )
         #expect(
             config.serverURL
-                == "rtmp://a.rtmp.youtube.com/live2"
+                == "rtmps://a.rtmp.youtube.com/live2"
         )
         #expect(config.streamKey == "yt_key")
         #expect(config.retryPolicy == .default)

@@ -54,6 +54,19 @@ public struct SRTOptions: Sendable, Equatable {
     /// LiveCC and FileCC algorithms.
     public var congestionControl: SRTCongestionControl
 
+    /// ARQ (Automatic Repeat Request) mode for FEC.
+    ///
+    /// Controls retransmission behavior when FEC is enabled.
+    /// Matches SRTKit 0.1.0's ``FECConfiguration.ARQMode``.
+    public var arqMode: SRTARQMode
+
+    /// Connection group bonding mode.
+    ///
+    /// When set, enables multi-link bonding for redundancy
+    /// or load balancing. Matches SRTKit 0.1.0's connection
+    /// group subsystem. `nil` disables bonding.
+    public var bondingMode: SRTBondingMode?
+
     /// Creates SRT connection options.
     ///
     /// - Parameters:
@@ -65,6 +78,8 @@ public struct SRTOptions: Sendable, Equatable {
     ///   - mode: Connection mode. Default `.caller`.
     ///   - fecConfiguration: FEC config. Default `nil`.
     ///   - congestionControl: Congestion algorithm. Default `.live`.
+    ///   - arqMode: ARQ mode for FEC. Default `.always`.
+    ///   - bondingMode: Bonding mode. Default `nil`.
     public init(
         passphrase: String? = nil,
         keyLength: KeyLength = .aes128,
@@ -73,7 +88,9 @@ public struct SRTOptions: Sendable, Equatable {
         streamID: String? = nil,
         mode: SRTConnectionMode = .caller,
         fecConfiguration: SRTFECConfiguration? = nil,
-        congestionControl: SRTCongestionControl = .live
+        congestionControl: SRTCongestionControl = .live,
+        arqMode: SRTARQMode = .always,
+        bondingMode: SRTBondingMode? = nil
     ) {
         self.passphrase = passphrase
         self.keyLength = keyLength
@@ -83,6 +100,8 @@ public struct SRTOptions: Sendable, Equatable {
         self.mode = mode
         self.fecConfiguration = fecConfiguration
         self.congestionControl = congestionControl
+        self.arqMode = arqMode
+        self.bondingMode = bondingMode
     }
 
     /// Default options: no encryption, 120ms latency, unlimited
@@ -186,6 +205,43 @@ public enum SRTCongestionControl: String, Sendable, Equatable, CaseIterable {
 
     /// AIMD windowing for high-throughput file transfer.
     case file
+}
+
+// MARK: - SRT ARQ Mode
+
+/// ARQ (Automatic Repeat Request) mode for SRT FEC.
+///
+/// Controls retransmission behavior when forward error
+/// correction is enabled. Matches SRTKit 0.1.0's
+/// ``FECConfiguration.ARQMode``.
+public enum SRTARQMode: String, Sendable, Equatable, CaseIterable {
+
+    /// FEC and ARQ both active (default).
+    case always
+
+    /// FEC first, ARQ only on explicit request.
+    case onreq
+
+    /// FEC only, no retransmission.
+    case never
+}
+
+// MARK: - SRT Bonding Mode
+
+/// Connection group bonding mode for SRT multi-link.
+///
+/// Matches SRTKit 0.1.0's ``GroupMode`` for multi-link
+/// bonding with broadcast, failover, and load balancing.
+public enum SRTBondingMode: String, Sendable, Equatable, CaseIterable {
+
+    /// Send on all links simultaneously; receiver deduplicates.
+    case broadcast
+
+    /// One active link with standby backups and failover.
+    case mainBackup
+
+    /// Distribute packets across links for aggregate bandwidth.
+    case balancing
 }
 
 // MARK: - SRT Network Stats

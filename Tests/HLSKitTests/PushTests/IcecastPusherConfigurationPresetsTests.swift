@@ -68,9 +68,9 @@ struct IcecastPusherConfigurationPresetsTests {
 
     // MARK: - IcecastServerPreset Enum
 
-    @Test("IcecastServerPreset has all 6 cases and CaseIterable")
+    @Test("IcecastServerPreset has all 7 cases and CaseIterable")
     func serverPresetAllCases() {
-        #expect(IcecastServerPreset.allCases.count == 6)
+        #expect(IcecastServerPreset.allCases.count == 7)
         #expect(
             IcecastServerPreset.azuracast.rawValue == "azuracast"
         )

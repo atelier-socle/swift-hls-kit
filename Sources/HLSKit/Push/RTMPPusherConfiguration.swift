@@ -63,7 +63,7 @@ public struct RTMPPusherConfiguration: Sendable, Equatable {
         streamKey: String
     ) -> RTMPPusherConfiguration {
         RTMPPusherConfiguration(
-            serverURL: "rtmp://live.twitch.tv/app",
+            serverURL: "rtmps://live.twitch.tv/app",
             streamKey: streamKey,
             retryPolicy: .aggressive
         )
@@ -77,7 +77,7 @@ public struct RTMPPusherConfiguration: Sendable, Equatable {
         streamKey: String
     ) -> RTMPPusherConfiguration {
         RTMPPusherConfiguration(
-            serverURL: "rtmp://a.rtmp.youtube.com/live2",
+            serverURL: "rtmps://a.rtmp.youtube.com/live2",
             streamKey: streamKey
         )
     }
@@ -190,6 +190,38 @@ public struct RTMPPusherConfiguration: Sendable, Equatable {
         RTMPPusherConfiguration(
             serverURL:
                 "rtmp://fa723fc1b171.global-contribute.live-video.net/app/",
+            streamKey: streamKey
+        )
+    }
+
+    /// LinkedIn Live configuration.
+    ///
+    /// Uses RTMPS ingest at `livein.linkedin.com`.
+    /// Mirrors RTMPKit 0.2.0 ``PlatformPreset/linkedin``.
+    ///
+    /// - Parameter streamKey: LinkedIn stream key.
+    /// - Returns: Configuration for LinkedIn RTMPS ingest.
+    public static func linkedin(
+        streamKey: String
+    ) -> RTMPPusherConfiguration {
+        RTMPPusherConfiguration(
+            serverURL: "rtmps://livein.linkedin.com:443/live/",
+            streamKey: streamKey
+        )
+    }
+
+    /// Trovo Live configuration.
+    ///
+    /// Uses RTMP (non-TLS) ingest at `livepush.trovo.live`.
+    /// Mirrors RTMPKit 0.2.0 ``PlatformPreset/trovo``.
+    ///
+    /// - Parameter streamKey: Trovo stream key.
+    /// - Returns: Configuration for Trovo RTMP ingest.
+    public static func trovo(
+        streamKey: String
+    ) -> RTMPPusherConfiguration {
+        RTMPPusherConfiguration(
+            serverURL: "rtmp://livepush.trovo.live/live/",
             streamKey: streamKey
         )
     }

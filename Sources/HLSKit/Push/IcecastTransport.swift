@@ -20,6 +20,15 @@ public enum IcecastAuthMode: String, Sendable, Equatable, CaseIterable {
 
     /// Authorization: Bearer token.
     case bearer
+
+    /// Token passed as URL query parameter.
+    case queryToken
+
+    /// SHOUTcast v1 password-only authentication.
+    case shoutcast
+
+    /// SHOUTcast v2 user:password authentication.
+    case shoutcastV2
 }
 
 // MARK: - Icecast Credentials

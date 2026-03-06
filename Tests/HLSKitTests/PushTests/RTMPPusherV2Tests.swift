@@ -226,7 +226,7 @@ struct RTMPPusherV2Tests {
         let pusherConfig = await pusher.configuration
         #expect(pusherConfig.streamKey == "abc123")
         #expect(
-            pusherConfig.serverURL == "rtmp://live.twitch.tv/app"
+            pusherConfig.serverURL == "rtmps://live.twitch.tv/app"
         )
     }
 

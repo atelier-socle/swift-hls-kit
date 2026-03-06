@@ -139,7 +139,7 @@ struct IcecastTransportV2Tests {
         #expect(IcecastAuthMode.basic.rawValue == "basic")
         #expect(IcecastAuthMode.digest.rawValue == "digest")
         #expect(IcecastAuthMode.bearer.rawValue == "bearer")
-        #expect(IcecastAuthMode.allCases.count == 3)
+        #expect(IcecastAuthMode.allCases.count == 6)
     }
 
     // MARK: - IcecastMetadata Unchanged

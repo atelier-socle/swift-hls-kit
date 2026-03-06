@@ -28,6 +28,9 @@ public enum IcecastServerPreset: String, Sendable, Equatable,
 
     /// Official Icecast server.
     case icecastOfficial
+
+    /// Broadcastify (formerly RadioReference) streaming.
+    case broadcastify
 }
 
 // MARK: - Configuration
@@ -233,6 +236,31 @@ public struct IcecastPusherConfiguration: Sendable, Equatable {
             credentials: IcecastCredentials(password: password),
             contentType: .mp3,
             serverPreset: .shoutcastDNAS
+        )
+    }
+
+    /// Broadcastify (formerly RadioReference) configuration.
+    ///
+    /// Uses port 80 with bearer token authentication.
+    /// Matches IcecastKit 0.2.0's Broadcastify preset.
+    ///
+    /// - Parameters:
+    ///   - host: Server hostname or IP.
+    ///   - token: Bearer authentication token.
+    /// - Returns: Configuration for Broadcastify.
+    public static func broadcastify(
+        host: String,
+        token: String
+    ) -> IcecastPusherConfiguration {
+        IcecastPusherConfiguration(
+            serverURL: "http://\(host):80",
+            mountpoint: "/stream.mp3",
+            credentials: IcecastCredentials(
+                password: token,
+                authenticationMode: .bearer
+            ),
+            contentType: .mp3,
+            serverPreset: .broadcastify
         )
     }
 }
