@@ -27,6 +27,17 @@ public actor IcecastPusher: SegmentPusher {
     private let updateMetadataFn: @Sendable (IcecastMetadata) async throws -> Void
     private let isConnectedFn: @Sendable () async -> Bool
 
+    // v2 transport closures.
+    private let serverVersionFn: @Sendable () async -> String?
+    private let streamStatisticsFn: @Sendable () async -> IcecastStreamStatistics?
+    private let qualityAwareQualityFn: (@Sendable () async -> TransportQuality?)?
+
+    /// Stream of transport events from the underlying transport.
+    ///
+    /// Returns an active stream if the transport conforms to
+    /// ``QualityAwareTransport``, otherwise an empty completed stream.
+    public nonisolated let transportEvents: AsyncStream<TransportEvent>
+
     private var _connectionState: PushConnectionState = .disconnected
     private var _stats: PushStats = .zero
     private var currentMetadata: IcecastMetadata?
@@ -60,6 +71,24 @@ public actor IcecastPusher: SegmentPusher {
         }
         self.isConnectedFn = {
             await transport.isConnected
+        }
+        self.serverVersionFn = {
+            await transport.serverVersion
+        }
+        self.streamStatisticsFn = {
+            await transport.streamStatistics
+        }
+
+        // Capture quality-aware capabilities if the transport
+        // conforms to QualityAwareTransport.
+        if let qualityTransport = transport as? any QualityAwareTransport {
+            self.qualityAwareQualityFn = {
+                await qualityTransport.connectionQuality
+            }
+            self.transportEvents = qualityTransport.transportEvents
+        } else {
+            self.qualityAwareQualityFn = nil
+            self.transportEvents = AsyncStream { $0.finish() }
         }
     }
 
@@ -156,6 +185,40 @@ public actor IcecastPusher: SegmentPusher {
         guard configuration.enableMetadata else { return }
         try await updateMetadataFn(metadata)
         currentMetadata = metadata
+    }
+
+    // MARK: - Transport v2
+
+    /// Current transport quality, if the underlying transport
+    /// conforms to ``QualityAwareTransport``.
+    ///
+    /// Returns `nil` when the transport does not support quality
+    /// reporting.
+    public var transportQuality: TransportQuality? {
+        get async {
+            guard let fn = qualityAwareQualityFn else { return nil }
+            return await fn()
+        }
+    }
+
+    /// Server version detected during the Icecast handshake.
+    ///
+    /// Delegates to the transport's
+    /// ``IcecastTransport/serverVersion`` property.
+    public var serverVersion: String? {
+        get async {
+            await serverVersionFn()
+        }
+    }
+
+    /// Current stream statistics from the transport.
+    ///
+    /// Delegates to the transport's
+    /// ``IcecastTransport/streamStatistics`` property.
+    public var streamStatistics: IcecastStreamStatistics? {
+        get async {
+            await streamStatisticsFn()
+        }
     }
 
     // MARK: - Private
