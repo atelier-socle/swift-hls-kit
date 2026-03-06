@@ -152,6 +152,28 @@ public enum LivePipelineEvent: Sendable {
     case warning(String)
     /// A component configuration warning (non-fatal).
     case componentWarning(String)
+
+    // MARK: - Transport-Aware Events
+
+    /// Transport quality has degraded below the policy threshold
+    /// for a destination.
+    case transportQualityDegraded(
+        destination: String, quality: TransportQuality
+    )
+
+    /// Pipeline has adjusted encoder bitrate based on transport
+    /// ABR recommendation.
+    case transportBitrateAdjusted(
+        oldBitrate: Int, newBitrate: Int, reason: String
+    )
+
+    /// A transport destination has failed (disconnected with error).
+    case transportDestinationFailed(
+        destination: String, error: String
+    )
+
+    /// Transport health dashboard update across all destinations.
+    case transportHealthUpdate(TransportHealthDashboard)
 }
 
 // MARK: - LivePipelineStateTransition

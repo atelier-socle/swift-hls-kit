@@ -152,6 +152,15 @@ public struct LivePipelineConfiguration: Sendable, Equatable {
     /// Session data entries for master playlist metadata.
     public var sessionData: SessionDataConfig?
 
+    // MARK: - Transport Policy
+
+    /// Transport-aware pipeline policy for reacting to transport
+    /// quality and ABR signals.
+    ///
+    /// When `nil`, transport signals are not monitored and the
+    /// pipeline operates without transport-aware adjustments.
+    public var transportPolicy: TransportAwarePipelinePolicy?
+
     // MARK: - Init
 
     /// Creates a new configuration with default values.
@@ -188,6 +197,7 @@ public struct LivePipelineConfiguration: Sendable, Equatable {
         self.redundancy = nil
         self.contentSteering = nil
         self.sessionData = nil
+        self.transportPolicy = nil
     }
 
     // MARK: - Validation
