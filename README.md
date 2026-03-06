@@ -34,7 +34,7 @@ Part of the [Atelier Socle](https://www.atelier-socle.com) ecosystem.
 - **I-Frame playlists** — Generate `EXT-X-I-FRAMES-ONLY` playlists for trick play and thumbnails
 - **MP4 inspection** — Container-level MP4 box reading, track analysis, and sample table parsing
 
-### Live Streaming (0.3.0)
+### Live Streaming & Advanced Features (0.4.0)
 
 - **Live Pipeline** — End-to-end `LivePipeline` facade: input → encoding → segmentation → playlist → push
 - **Live Encoding** — `LiveEncoder` protocol with `AudioEncoder` (AAC), `VideoEncoder` (H.264/HEVC), FFmpeg-based encoders, and `MultiBitrateEncoder`
@@ -75,7 +75,7 @@ Add the dependency to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/atelier-socle/swift-hls-kit.git", from: "0.3.0")
+    .package(url: "https://github.com/atelier-socle/swift-hls-kit.git", from: "0.4.0")
 ]
 ```
 

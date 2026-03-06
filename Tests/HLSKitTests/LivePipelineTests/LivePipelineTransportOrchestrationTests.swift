@@ -485,7 +485,18 @@ struct LivePipelineTransportEventEmissionTests {
             )
         )
         await transport.finish()
-        try await Task.sleep(for: .milliseconds(500))
+
+        // Poll until health update arrives (max 2s).
+        for _ in 0..<40 {
+            let events = await collector.collected()
+            let hasHealth = events.contains {
+                if case .transportHealthUpdate = $0 { return true }
+                return false
+            }
+            if hasHealth { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+
         task.cancel()
         let health = await collector.collected().filter {
             if case .transportHealthUpdate = $0 { return true }
