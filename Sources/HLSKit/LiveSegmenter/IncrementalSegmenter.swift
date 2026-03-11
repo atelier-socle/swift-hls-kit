@@ -73,22 +73,23 @@ public actor IncrementalSegmenter: LiveSegmenter {
 
     // MARK: - Segment Transform
 
-    private let segmentTransform: (@Sendable (LiveSegment, [EncodedFrame]) -> LiveSegment)?
+    private let segmentTransform: (@Sendable (LiveSegment, [EncodedFrame]) async -> LiveSegment)?
 
     /// Creates an incremental segmenter.
     ///
     /// - Parameters:
     ///   - configuration: Segmentation configuration.
     ///     Defaults to ``LiveSegmenterConfiguration/standardLive``.
-    ///   - segmentTransform: Optional closure to transform a
+    ///   - segmentTransform: Optional async closure to transform a
     ///     completed segment (e.g., wrap raw data in fMP4 via
     ///     ``CMAFWriter``). Receives the raw segment and its
-    ///     source frames. Defaults to nil (no transform).
+    ///     source frames. Synchronous closures are also accepted.
+    ///     Defaults to nil (no transform).
     public init(
         configuration: LiveSegmenterConfiguration = .standardLive,
-        segmentTransform:
-            (@Sendable (LiveSegment, [EncodedFrame]) -> LiveSegment)? =
-            nil
+        segmentTransform: (
+            @Sendable (LiveSegment, [EncodedFrame]) async -> LiveSegment
+        )? = nil
     ) {
         self.configuration = configuration
         self.nextSegmentIndex = configuration.startIndex
@@ -137,7 +138,7 @@ public actor IncrementalSegmenter: LiveSegmenter {
             >= configuration.maxDuration
 
         if wouldExceedTarget && shouldCutSegment(at: frame) {
-            emitCurrentSegment()
+            await emitCurrentSegment()
             currentTimestamp = frame.timestamp
             if configuration.trackProgramDateTime {
                 currentStartDate = Date()
@@ -146,7 +147,7 @@ public actor IncrementalSegmenter: LiveSegmenter {
             currentFrames.append(frame)
             currentDuration += frameDuration
             currentCodecs.insert(frame.codec)
-            emitCurrentSegment()
+            await emitCurrentSegment()
             return
         }
 
@@ -162,7 +163,7 @@ public actor IncrementalSegmenter: LiveSegmenter {
         guard !currentFrames.isEmpty else {
             throw LiveSegmenterError.noFramesPending
         }
-        emitCurrentSegment()
+        await emitCurrentSegment()
     }
 
     public func finish() async throws -> LiveSegment? {
@@ -174,7 +175,7 @@ public actor IncrementalSegmenter: LiveSegmenter {
             return nil
         }
 
-        let segment = buildSegment()
+        let segment = await buildSegment()
         ringBuffer.append(segment)
         segmentContinuation.yield(segment)
         segmentContinuation.finish()
@@ -223,17 +224,17 @@ public actor IncrementalSegmenter: LiveSegmenter {
         return frame.isKeyframe && frame.codec.isVideo
     }
 
-    private func emitCurrentSegment() {
+    private func emitCurrentSegment() async {
         guard !currentFrames.isEmpty else { return }
 
-        let segment = buildSegment()
+        let segment = await buildSegment()
         ringBuffer.append(segment)
         segmentContinuation.yield(segment)
         totalSegmentsEmitted += 1
         resetCurrentSegment()
     }
 
-    private func buildSegment() -> LiveSegment {
+    private func buildSegment() async -> LiveSegment {
         let data = currentFrames.reduce(into: Data()) {
             $0.append($1.data)
         }
@@ -264,7 +265,7 @@ public actor IncrementalSegmenter: LiveSegmenter {
         )
 
         if let transform = segmentTransform {
-            segment = transform(segment, currentFrames)
+            segment = await transform(segment, currentFrames)
         }
 
         nextSegmentIndex += 1

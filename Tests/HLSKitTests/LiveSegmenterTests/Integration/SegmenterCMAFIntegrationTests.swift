@@ -82,6 +82,73 @@ struct SegmenterCMAFIntegrationTests {
         }
     }
 
+    @Test("Async segmentTransform produces fMP4")
+    func asyncSegmentTransform() async throws {
+        let cmafWriter = CMAFWriter()
+        let config = LiveSegmenterConfiguration(
+            targetDuration: 0.5,
+            keyframeAligned: false
+        )
+        let counter = LockedState(
+            initialState: UInt32(0)
+        )
+        let asyncTransform:
+            @Sendable (LiveSegment, [EncodedFrame]) async
+                -> LiveSegment = { segment, frames in
+                    let seq = counter.withLock { val -> UInt32 in
+                        val += 1
+                        return val
+                    }
+                    let data = cmafWriter.generateMediaSegment(
+                        frames: frames,
+                        sequenceNumber: seq,
+                        timescale: 48000
+                    )
+                    return LiveSegment(
+                        index: segment.index,
+                        data: data,
+                        duration: segment.duration,
+                        timestamp: segment.timestamp,
+                        isIndependent: segment.isIndependent,
+                        programDateTime: segment.programDateTime,
+                        filename: segment.filename,
+                        frameCount: segment.frameCount,
+                        codecs: segment.codecs
+                    )
+                }
+
+        let segmenter = IncrementalSegmenter(
+            configuration: config,
+            segmentTransform: asyncTransform
+        )
+
+        let collector = Task<[LiveSegment], Never> {
+            var emitted: [LiveSegment] = []
+            for await segment in segmenter.segments {
+                emitted.append(segment)
+            }
+            return emitted
+        }
+
+        let frames = EncodedFrameFactory.audioFrames(count: 100)
+        for frame in frames {
+            try await segmenter.ingest(frame)
+        }
+        _ = try await segmenter.finish()
+
+        let emitted = await collector.value
+        #expect(emitted.count >= 2)
+
+        for segment in emitted {
+            let boxes = try MP4BoxReader().readBoxes(
+                from: segment.data
+            )
+            #expect(boxes[0].type == "styp")
+            #expect(boxes[1].type == "moof")
+            #expect(boxes[2].type == "mdat")
+        }
+    }
+
     // MARK: - Ring Buffer with fMP4
 
     @Test("Ring buffer stores fMP4 segments correctly")
