@@ -66,6 +66,11 @@ extension BinaryWriter {
         }
     }
 
+    /// Write a 16-bit signed integer in big-endian.
+    public mutating func writeInt16(_ value: Int16) {
+        writeUInt16(UInt16(bitPattern: value))
+    }
+
     /// Write a 32-bit signed integer in big-endian.
     public mutating func writeInt32(_ value: Int32) {
         writeUInt32(UInt32(bitPattern: value))

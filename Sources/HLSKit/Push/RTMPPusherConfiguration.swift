@@ -111,7 +111,7 @@ public struct RTMPPusherConfiguration: Sendable, Equatable {
         )
     }
 
-    // MARK: - Platform Presets (0.4.0)
+    // MARK: - Platform Presets (0.5.0)
 
     /// Instagram Live configuration.
     ///

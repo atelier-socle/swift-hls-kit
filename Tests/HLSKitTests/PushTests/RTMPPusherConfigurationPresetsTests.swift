@@ -9,7 +9,7 @@ import Testing
 @Suite("RTMPPusherConfiguration — Platform Presets")
 struct RTMPPusherConfigurationPresetsTests {
 
-    // MARK: - New Presets (0.4.0)
+    // MARK: - New Presets (0.5.0)
 
     @Test("Instagram preset has correct URL and key")
     func instagramPreset() {

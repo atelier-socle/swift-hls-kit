@@ -8,7 +8,7 @@ Build complete live HLS pipelines — from audio/video input to segment delivery
 
 ## Overview
 
-HLSKit provides a full live streaming pipeline alongside the existing VOD capabilities. The pipeline is modular: each stage has its own protocol, and ``LivePipeline`` orchestrates them end-to-end. In 0.4.0, the pipeline adds transport-aware quality monitoring with ``TransportAwarePusher``, adaptive bitrate adjustments, and a ``TransportHealthDashboard`` for multi-destination health tracking.
+HLSKit provides a full live streaming pipeline alongside the existing VOD capabilities. The pipeline is modular: each stage has its own protocol, and ``LivePipeline`` orchestrates them end-to-end. In 0.5.0, the pipeline adds transport-aware quality monitoring with ``TransportAwarePusher``, adaptive bitrate adjustments, and a ``TransportHealthDashboard`` for multi-destination health tracking.
 
 ### Architecture
 

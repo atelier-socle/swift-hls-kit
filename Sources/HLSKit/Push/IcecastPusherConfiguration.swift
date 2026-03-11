@@ -163,7 +163,7 @@ public struct IcecastPusherConfiguration: Sendable, Equatable {
         )
     }
 
-    // MARK: - Server Presets (0.4.0)
+    // MARK: - Server Presets (0.5.0)
 
     /// AzuraCast configuration.
     ///

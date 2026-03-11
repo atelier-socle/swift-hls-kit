@@ -76,7 +76,7 @@ public struct SRTPusherConfiguration: Sendable, Equatable {
         )
     }
 
-    // MARK: - Presets (0.4.0)
+    // MARK: - Presets (0.5.0)
 
     /// Rendezvous mode configuration with encryption.
     ///

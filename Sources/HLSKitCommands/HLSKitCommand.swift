@@ -19,7 +19,7 @@ public struct HLSKitCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
         commandName: "hlskit-cli",
         abstract: "HLS packaging toolkit — segment, transcode, encrypt, and validate HLS streams.",
-        version: "0.4.0",
+        version: "0.5.0",
         subcommands: [
             SegmentCommand.self,
             TranscodeCommand.self,

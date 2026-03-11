@@ -165,13 +165,3 @@ extension MVHEVCPackager {
     /// Non-sync sample flags: depends_on=1, non_sync=1.
     var nonSyncSampleFlags: UInt32 { 0x0101_0000 }
 }
-
-// MARK: - BinaryWriter Int16 Extension
-
-extension BinaryWriter {
-
-    /// Write a 16-bit signed integer in big-endian.
-    mutating func writeInt16(_ value: Int16) {
-        writeUInt16(UInt16(bitPattern: value))
-    }
-}

@@ -8,7 +8,7 @@ import Testing
 @Suite("IcecastPusherConfiguration — Server Presets")
 struct IcecastPusherConfigurationPresetsTests {
 
-    // MARK: - New Presets (0.4.0)
+    // MARK: - New Presets (0.5.0)
 
     @Test("AzuraCast preset has correct defaults")
     func azuracastPreset() {

@@ -159,8 +159,8 @@ extension CMAFWriter {
         entry.writeZeros(32)
         // Depth (24 bit)
         entry.writeUInt16(0x0018)
-        // Pre-defined
-        entry.writeInt32(-1)
+        // Pre-defined = -1 (ISO 14496-12 §12.1.3: int(16))
+        entry.writeInt16(-1)
         // avcC box
         entry.writeData(buildAvcC(config: config))
         var box = BinaryWriter()

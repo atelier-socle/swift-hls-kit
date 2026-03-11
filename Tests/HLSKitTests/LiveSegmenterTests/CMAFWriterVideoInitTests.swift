@@ -172,6 +172,75 @@ struct CMAFWriterVideoInitTests {
         #expect(boxes[1].type == "moov")
     }
 
+    // MARK: - avc1 VisualSampleEntry Layout (ISO 14496-12 §12.1.3)
+
+    @Test("avc1 VisualSampleEntry is 78 bytes before avcC box")
+    func avc1VisualSampleEntrySize() throws {
+        let config = makeVideoConfig()
+        let data = writer.generateVideoInitSegment(config: config)
+        let boxes = try readBoxes(from: data)
+        let moov = try #require(findBox("moov", in: boxes))
+        let stsd = try #require(
+            moov.findByPath("trak/mdia/minf/stbl/stsd")
+        )
+        let payload = try #require(stsd.payload)
+        // stsd payload: 4-byte version/flags already stripped by reader,
+        // then 4-byte entry_count, then avc1 box.
+        // Find "avc1" fourCC in payload to locate the box header.
+        let avc1FourCC = Data("avc1".utf8)
+        var avc1Offset: Int?
+        for i in 0...(payload.count - 4) {
+            let start = payload.startIndex + i
+            if payload[start..<(start + 4)] == avc1FourCC {
+                avc1Offset = i
+                break
+            }
+        }
+        let boxStart = try #require(avc1Offset)
+        // avc1 box: 4 size + 4 type + 78 VisualSampleEntry = 86 bytes
+        // to the first child box (avcC).
+        let avcCExpectedOffset = boxStart + 4 + 78  // after type + entry
+        let remaining = payload.count - avcCExpectedOffset
+        #expect(remaining > 8, "Not enough data after VisualSampleEntry")
+        // Read the fourCC at that offset — must be "avcC"
+        let fourCCStart = payload.startIndex + avcCExpectedOffset + 4
+        let fourCCEnd = fourCCStart + 4
+        #expect(fourCCEnd <= payload.endIndex)
+        let fourCC = String(
+            data: payload[fourCCStart..<fourCCEnd], encoding: .ascii
+        )
+        #expect(fourCC == "avcC", "avcC must start at offset 78 in avc1")
+    }
+
+    @Test("avc1 avcC box contains valid configurationVersion")
+    func avc1AvcCConfigVersion() throws {
+        let config = makeVideoConfig()
+        let data = writer.generateVideoInitSegment(config: config)
+        let boxes = try readBoxes(from: data)
+        let moov = try #require(findBox("moov", in: boxes))
+        let stsd = try #require(
+            moov.findByPath("trak/mdia/minf/stbl/stsd")
+        )
+        let payload = try #require(stsd.payload)
+        // Find "avcC" fourCC
+        let avcCFourCC = Data("avcC".utf8)
+        var avcCOffset: Int?
+        for i in 0...(payload.count - 4) {
+            let start = payload.startIndex + i
+            if payload[start..<(start + 4)] == avcCFourCC {
+                avcCOffset = i
+                break
+            }
+        }
+        let boxTypeOffset = try #require(avcCOffset)
+        // After 4-byte type comes the avcC payload
+        let configVersionOffset =
+            payload.startIndex + boxTypeOffset + 4
+        #expect(configVersionOffset < payload.endIndex)
+        // configurationVersion must be 1
+        #expect(payload[configVersionOffset] == 1)
+    }
+
     // MARK: - VideoConfig
 
     @Test("VideoConfig equatable")
