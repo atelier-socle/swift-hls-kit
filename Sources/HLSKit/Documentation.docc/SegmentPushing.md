@@ -117,7 +117,7 @@ let monitor = BandwidthMonitor(
 
 ### Transport Quality Monitoring
 
-In 0.5.0, HLSKit adds transport v2 contracts that enable quality-aware delivery. ``TransportAwarePusher`` wraps any ``SegmentPusher`` together with a ``QualityAwareTransport`` to provide real-time quality signals back to the ``LivePipeline``.
+In 0.6.0, HLSKit adds transport v2 contracts that enable quality-aware delivery. ``TransportAwarePusher`` wraps any ``SegmentPusher`` together with a ``QualityAwareTransport`` to provide real-time quality signals back to the ``LivePipeline``.
 
 The ``QualityAwareTransport`` protocol provides:
 - ``TransportQuality`` — a score (0.0–1.0) with a ``TransportQualityGrade`` (excellent, good, fair, poor, critical)

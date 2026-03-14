@@ -212,18 +212,18 @@ extension CMAFWriter {
         var entry = BinaryWriter()
         // VisualSampleEntry (ISO 14496-12 §12.1.3)
         // Same 78-byte header as avc1
-        entry.writeZeros(6)       // reserved
-        entry.writeUInt16(1)      // data_reference_index
-        entry.writeZeros(16)      // pre_defined + reserved
+        entry.writeZeros(6)  // reserved
+        entry.writeUInt16(1)  // data_reference_index
+        entry.writeZeros(16)  // pre_defined + reserved
         entry.writeUInt16(UInt16(config.width))
         entry.writeUInt16(UInt16(config.height))
         entry.writeUInt32(0x0048_0000)  // 72 dpi horizontal
         entry.writeUInt32(0x0048_0000)  // 72 dpi vertical
-        entry.writeUInt32(0)      // reserved
-        entry.writeUInt16(1)      // frame_count
-        entry.writeZeros(32)      // compressorname
-        entry.writeUInt16(0x0018) // depth (24-bit)
-        entry.writeInt16(-1)      // pre_defined
+        entry.writeUInt32(0)  // reserved
+        entry.writeUInt16(1)  // frame_count
+        entry.writeZeros(32)  // compressorname
+        entry.writeUInt16(0x0018)  // depth (24-bit)
+        entry.writeInt16(-1)  // pre_defined
         // hvcC box (ISO 14496-15 §8.3.3.1)
         entry.writeData(buildHvcC(config: config))
         var box = BinaryWriter()
@@ -346,9 +346,9 @@ extension CMAFWriter {
             profileCompatibility: profileCompat,
             constraintIndicator: constraintInd,
             levelIDC: levelIDC,
-            chromaFormat: 1,    // 4:2:0 default
-            bitDepthLuma: 0,    // 8-bit default
-            bitDepthChroma: 0   // 8-bit default
+            chromaFormat: 1,  // 4:2:0 default
+            bitDepthLuma: 0,  // 8-bit default
+            bitDepthChroma: 0  // 8-bit default
         )
     }
 

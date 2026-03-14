@@ -8,7 +8,7 @@
 
 ![swift-hls-kit](./assets/banner.png)
 
-An enterprise-grade, pure Swift HLS library with complete live pipeline, MV-HEVC spatial video for Apple Vision Pro, IMSC1 subtitles, transport quality monitoring, and variable substitution. Parse, generate, and validate M3U8 manifests, segment and transcode media, encrypt segments, and run a transport-aware live streaming pipeline with Low-Latency HLS, quality-driven ABR, DRM, spatial audio, HDR, and accessibility. RFC 8216 compliant with strict `Sendable` conformance throughout. Zero external dependencies in the core library (only `swift-argument-parser` for the CLI). Cross-platform: macOS, iOS, tvOS, watchOS, visionOS, and Linux. 5,127 tests, 31 industry standards covered.
+An enterprise-grade, pure Swift HLS library with complete live pipeline, MV-HEVC spatial video for Apple Vision Pro, IMSC1 subtitles, transport quality monitoring, and variable substitution. Parse, generate, and validate M3U8 manifests, segment and transcode media, encrypt segments, and run a transport-aware live streaming pipeline with Low-Latency HLS, quality-driven ABR, DRM, spatial audio, HDR, and accessibility. RFC 8216 compliant with strict `Sendable` conformance throughout. Zero external dependencies in the core library (only `swift-argument-parser` for the CLI). Cross-platform: macOS, iOS, tvOS, watchOS, visionOS, and Linux. 5,165 tests, 31 industry standards covered.
 
 Part of the [Atelier Socle](https://www.atelier-socle.com) ecosystem.
 
@@ -39,11 +39,11 @@ HLSKit works standalone with built-in HTTP push. For advanced transport protocol
 - **I-Frame playlists** — Generate `EXT-X-I-FRAMES-ONLY` playlists for trick play and thumbnails
 - **MP4 inspection** — Container-level MP4 box reading, track analysis, and sample table parsing
 
-### Live Streaming & Advanced Features (0.5.0)
+### Live Streaming & Advanced Features (0.6.0)
 
 - **Live Pipeline** — End-to-end `LivePipeline` facade: input → encoding → segmentation → playlist → push
 - **Live Encoding** — `LiveEncoder` protocol with `AudioEncoder` (AAC), `VideoEncoder` (H.264/HEVC), FFmpeg-based encoders, and `MultiBitrateEncoder`
-- **Live Segmentation** — CMAF fMP4 segmentation with `AudioSegmenter`, `VideoSegmenter`, `CMAFWriter`, and ring buffer
+- **Live Segmentation** — CMAF fMP4 segmentation with `AudioSegmenter`, `VideoSegmenter` (H.264 + HEVC), `CMAFWriter`, and ring buffer
 - **Live Playlists** — `SlidingWindowPlaylist`, `DVRPlaylist`, `EventPlaylist` with `PlaylistRenderer`
 - **LL-HLS** — Low-Latency HLS with partial segments, blocking reload, delta updates, and server control
 - **Transport-Aware Push** — `HTTPPusher`, `RTMPPusher`, `SRTPusher`, `IcecastPusher` with quality monitoring, ABR, and health dashboard
@@ -85,7 +85,7 @@ Add the dependency to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/atelier-socle/swift-hls-kit.git", from: "0.5.0")
+    .package(url: "https://github.com/atelier-socle/swift-hls-kit.git", from: "0.6.0")
 ]
 ```
 
@@ -540,7 +540,7 @@ The project includes a comprehensive test suite using Swift Testing (`import Tes
 | CLI | All 10 commands, argument parsing, integration |
 | EndToEnd | Cross-feature integration scenarios |
 
-5,127 tests across 610 suites. All tests run on macOS in CI. No XCTest — 100% Swift Testing.
+5,165 tests across 617 suites. All tests run on macOS in CI. No XCTest — 100% Swift Testing.
 
 The project also includes `Scripts/mock-hls-server.py` (a Python-based test server with 5 modes) and `Scripts/run-cli-scenarios.sh` (an automated 38-scenario CLI regression runner).
 
@@ -566,7 +566,7 @@ The catalog includes 33 guides:
 | CLI Reference | 10 commands with options, examples, JSON config |
 | Live Streaming | Pipeline architecture overview and use cases |
 | Live Encoding | MediaSource, LiveEncoder, audio/video encoding, multi-bitrate |
-| Live Segmentation | AudioSegmenter, VideoSegmenter, CMAFWriter, CMAF fMP4 |
+| Live Segmentation | AudioSegmenter, VideoSegmenter, CMAFWriter, CMAF fMP4 (H.264 + HEVC) |
 | Live Playlists | Sliding window, DVR, event playlists, renderer |
 | Low-Latency HLS | Partial segments, blocking reload, delta updates, server control |
 | Segment Pushing | HTTP, RTMP, SRT, Icecast, multi-destination push |

@@ -41,7 +41,7 @@ struct RTMPTransportV2ShowcaseTests {
         #expect(config.streamKey == "fb-key-789")
     }
 
-    // MARK: - Extended Platform Presets (0.5.0)
+    // MARK: - Extended Platform Presets (0.6.0)
 
     @Test("All v2 platform presets have correct ingest URLs")
     func allV2PlatformPresets() {

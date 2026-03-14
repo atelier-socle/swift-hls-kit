@@ -41,28 +41,45 @@ for await segment in segmenter.segments {
 
 ### Video Segmenter
 
-``VideoSegmenter`` aligns segments on keyframe boundaries for proper seeking:
+``VideoSegmenter`` aligns segments on keyframe boundaries for proper seeking.
+It supports both H.264 (avc1) and HEVC (hev1) codecs:
 
 ```swift
+// H.264 video
 let videoConfig = CMAFWriter.VideoConfig(
     codec: .h264,
     width: 1280, height: 720,
     sps: spsData,
     pps: ppsData
 )
-let segConfig = LiveSegmenterConfiguration(
-    targetDuration: 1.0,
-    keyframeAligned: true
+
+// HEVC video (pass VPS for hev1/hvcC init segment)
+let hevcConfig = CMAFWriter.VideoConfig(
+    codec: .h265,
+    width: 3840, height: 2160,
+    sps: spsData,
+    pps: ppsData,
+    vps: vpsData
 )
+
 let segmenter = VideoSegmenter(
     videoConfig: videoConfig,
-    configuration: segConfig
+    configuration: LiveSegmenterConfiguration(
+        targetDuration: 1.0,
+        keyframeAligned: true
+    )
 )
 ```
 
+When audio is configured, ``VideoSegmenter`` synchronizes audio segments
+to video segment boundaries. Audio segments are emitted only when the
+video segmenter cuts a new segment, ensuring aligned output pairs.
+
 ### CMAF Writer
 
-``CMAFWriter`` generates CMAF-compliant fMP4 initialization and media segments. Init segments contain `ftyp` + `moov` boxes with the `cmfc` brand; media segments contain `styp` + `moof` + `mdat` with the `msdh` brand:
+``CMAFWriter`` generates CMAF-compliant fMP4 initialization and media segments. Init segments contain `ftyp` + `moov` boxes with the `cmfc` brand; media segments contain `styp` + `moof` + `mdat` with the `msdh` brand.
+
+For HEVC video, the init segment produces an `hev1` sample entry with an ISO 14496-15 `hvcC` box containing VPS/SPS/PPS parameter sets. Profile, tier, and level are extracted from the SPS automatically.
 
 ```swift
 let writer = CMAFWriter()

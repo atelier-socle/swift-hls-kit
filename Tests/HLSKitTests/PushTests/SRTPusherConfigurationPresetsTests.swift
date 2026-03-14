@@ -8,7 +8,7 @@ import Testing
 @Suite("SRTPusherConfiguration — Presets")
 struct SRTPusherConfigurationPresetsTests {
 
-    // MARK: - New Presets (0.5.0)
+    // MARK: - New Presets (0.6.0)
 
     @Test("Rendezvous preset has correct mode and encryption")
     func rendezvousPreset() {

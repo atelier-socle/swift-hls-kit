@@ -44,7 +44,8 @@ struct VideoSegmenterAudioSyncTests {
         video: [EncodedFrame],
         audio: [EncodedFrame]
     ) async throws {
-        var vi = 0, ai = 0
+        var vi = 0
+        var ai = 0
         while vi < video.count || ai < audio.count {
             let feedVideo: Bool
             if vi >= video.count {

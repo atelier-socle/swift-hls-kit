@@ -123,7 +123,7 @@ struct ManifestParseCommandDefinitionsTests {
         try await cmd.run()
     }
 
-    @Test("Parse JSON includes 0.5.0 variant attributes")
+    @Test("Parse JSON includes 0.6.0 variant attributes")
     func parseJSONVariantAttributes() async throws {
         let tmpDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
