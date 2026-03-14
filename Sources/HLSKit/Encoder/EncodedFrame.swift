@@ -44,6 +44,13 @@ public struct EncodedFrame: Sendable {
     /// Audio channel layout for this frame. Nil for video or default stereo.
     public let channelLayout: AudioChannelLayout?
 
+    /// Composition time offset (PTS - DTS) in media timescale units.
+    ///
+    /// Non-nil when B-frames are present and CTS differs from DTS.
+    /// Positive values mean PTS > DTS (display order after decode).
+    /// When nil, PTS == DTS is assumed (no composition offset).
+    public let compositionTimeOffset: Int32?
+
     /// Creates an encoded frame.
     ///
     /// - Parameters:
@@ -55,6 +62,8 @@ public struct EncodedFrame: Sendable {
     ///   - bitrateHint: Optional bitrate hint in bps.
     ///   - hdrMetadata: Optional HDR metadata.
     ///   - channelLayout: Optional audio channel layout.
+    ///   - compositionTimeOffset: Optional CTS offset in timescale
+    ///     units (PTS - DTS). Nil when PTS == DTS.
     public init(
         data: Data,
         timestamp: MediaTimestamp,
@@ -63,7 +72,8 @@ public struct EncodedFrame: Sendable {
         codec: EncodedCodec,
         bitrateHint: Int? = nil,
         hdrMetadata: HDRMetadata? = nil,
-        channelLayout: AudioChannelLayout? = nil
+        channelLayout: AudioChannelLayout? = nil,
+        compositionTimeOffset: Int32? = nil
     ) {
         self.data = data
         self.timestamp = timestamp
@@ -73,6 +83,7 @@ public struct EncodedFrame: Sendable {
         self.bitrateHint = bitrateHint
         self.hdrMetadata = hdrMetadata
         self.channelLayout = channelLayout
+        self.compositionTimeOffset = compositionTimeOffset
     }
 }
 

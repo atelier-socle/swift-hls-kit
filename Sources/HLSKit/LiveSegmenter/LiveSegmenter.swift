@@ -24,8 +24,10 @@ public protocol LiveSegmenter: Sendable {
     /// the completed segment is emitted via ``segments``.
     ///
     /// - Parameter frame: An encoded frame from a ``LiveEncoder``.
+    /// - Returns: `true` if a segment was emitted during this call.
     /// - Throws: ``LiveSegmenterError`` on failure.
-    func ingest(_ frame: EncodedFrame) async throws
+    @discardableResult
+    func ingest(_ frame: EncodedFrame) async throws -> Bool
 
     /// Stream of completed segments.
     ///

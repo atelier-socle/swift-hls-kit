@@ -138,7 +138,10 @@ public actor AudioSegmenter: LiveSegmenter {
     ///
     /// - Parameter frame: An encoded audio frame.
     /// - Throws: ``LiveSegmenterError`` on failure.
-    public func ingest(_ frame: EncodedFrame) async throws {
+    @discardableResult
+    public func ingest(
+        _ frame: EncodedFrame
+    ) async throws -> Bool {
         try await inner.ingest(frame)
     }
 

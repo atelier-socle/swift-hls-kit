@@ -347,11 +347,13 @@ extension CMAFWriter {
     ) -> Data {
         let mp4a = buildMp4aSampleEntry(config: config)
         var payload = BinaryWriter()
-        payload.writeUInt32(0)  // version + flags
         payload.writeUInt32(1)  // entry count
         payload.writeData(mp4a)
         var box = BinaryWriter()
-        box.writeBox(type: "stsd", payload: payload.data)
+        box.writeFullBox(
+            type: "stsd", version: 0, flags: 0,
+            payload: payload.data
+        )
         return box.data
     }
 }

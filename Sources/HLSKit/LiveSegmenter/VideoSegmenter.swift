@@ -184,12 +184,10 @@ public actor VideoSegmenter {
             throw LiveSegmenterError.notActive
         }
 
-        let countBefore = await videoSegmenter.segmentCount
-        try await videoSegmenter.ingest(frame)
-        let countAfter = await videoSegmenter.segmentCount
+        let didEmit = try await videoSegmenter.ingest(frame)
 
         // Video emitted a new segment — sync audio
-        if countAfter > countBefore {
+        if didEmit {
             if let audioSeg = audioSegmenter {
                 try? await audioSeg.forceSegmentBoundary()
             }

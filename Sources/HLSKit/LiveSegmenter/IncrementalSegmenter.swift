@@ -56,6 +56,8 @@ public actor IncrementalSegmenter: LiveSegmenter {
 
     private var currentFrames: [EncodedFrame] = []
     private var currentDuration: TimeInterval = 0
+    private var currentDurationTicks: Int64 = 0
+    private var currentDurationTimescale: Int32 = 0
     private var currentTimestamp: MediaTimestamp?
     private var currentCodecs: Set<EncodedCodec> = []
     private var currentStartDate: Date?
@@ -107,7 +109,10 @@ public actor IncrementalSegmenter: LiveSegmenter {
 
     // MARK: - LiveSegmenter
 
-    public func ingest(_ frame: EncodedFrame) async throws {
+    @discardableResult
+    public func ingest(
+        _ frame: EncodedFrame
+    ) async throws -> Bool {
         guard !isFinished else {
             throw LiveSegmenterError.notActive
         }
@@ -143,17 +148,22 @@ public actor IncrementalSegmenter: LiveSegmenter {
             if configuration.trackProgramDateTime {
                 currentStartDate = Date()
             }
+            currentFrames.append(frame)
+            accumulateDuration(frame.duration)
+            currentCodecs.insert(frame.codec)
+            return true
         } else if wouldExceedMax && !currentFrames.isEmpty {
             currentFrames.append(frame)
-            currentDuration += frameDuration
+            accumulateDuration(frame.duration)
             currentCodecs.insert(frame.codec)
             await emitCurrentSegment()
-            return
+            return true
         }
 
         currentFrames.append(frame)
-        currentDuration += frameDuration
+        accumulateDuration(frame.duration)
         currentCodecs.insert(frame.codec)
+        return false
     }
 
     public func forceSegmentBoundary() async throws {
@@ -275,8 +285,28 @@ public actor IncrementalSegmenter: LiveSegmenter {
     private func resetCurrentSegment() {
         currentFrames.removeAll()
         currentDuration = 0
+        currentDurationTicks = 0
+        currentDurationTimescale = 0
         currentTimestamp = nil
         currentCodecs = []
         currentStartDate = nil
+    }
+
+    /// Accumulate frame duration using integer math when
+    /// timescales are consistent, falling back to Double.
+    private func accumulateDuration(
+        _ duration: MediaTimestamp
+    ) {
+        if currentDurationTimescale == 0 {
+            currentDurationTimescale = duration.timescale
+        }
+        if duration.timescale == currentDurationTimescale {
+            currentDurationTicks += duration.value
+            currentDuration =
+                Double(currentDurationTicks)
+                / Double(currentDurationTimescale)
+        } else {
+            currentDuration += duration.seconds
+        }
     }
 }
