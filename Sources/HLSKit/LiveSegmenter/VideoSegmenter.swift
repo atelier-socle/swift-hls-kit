@@ -107,10 +107,17 @@ public actor VideoSegmenter {
             )
         )
 
-        // Audio segmenter (non-keyframe-aligned)
+        // Audio segmenter (sync-driven, never auto-emits)
+        //
+        // The audio segmenter must NOT auto-emit on its own
+        // targetDuration boundary. It only emits when
+        // forceSegmentBoundary() is called by the video sync
+        // logic, ensuring audio segments align with video.
         if let audioConfig {
             var audioConf = configuration
             audioConf.keyframeAligned = false
+            audioConf.targetDuration = .greatestFiniteMagnitude
+            audioConf.maxDuration = .greatestFiniteMagnitude
             self.audioSegmenter = IncrementalSegmenter(
                 configuration: audioConf,
                 segmentTransform: Self.makeTransform(

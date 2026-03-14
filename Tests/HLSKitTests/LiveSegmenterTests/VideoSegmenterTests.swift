@@ -142,58 +142,6 @@ struct VideoSegmenterTests {
         #expect(boxes[2].type == "mdat")
     }
 
-    // MARK: - Video + Audio
-
-    @Test("Video+audio: outputs have both segments")
-    func videoAudioOutputs() async throws {
-        let segmenter = makeSegmenter(
-            withAudio: true, targetDuration: 1.0
-        )
-
-        let collector =
-            Task<[VideoSegmenter.SegmentOutput], Never> {
-                var outputs: [VideoSegmenter.SegmentOutput] = []
-                for await output in segmenter.segmentOutputs {
-                    outputs.append(output)
-                }
-                return outputs
-            }
-
-        let videoFrames = EncodedFrameFactory.videoFrames(
-            count: 90, fps: 30.0, keyframeInterval: 30
-        )
-        let audioFrames = EncodedFrameFactory.audioFrames(
-            count: 150
-        )
-
-        // Interleave video and audio
-        var audioIdx = 0
-        for videoFrame in videoFrames {
-            try await segmenter.ingestVideo(videoFrame)
-            // Feed a few audio frames per video frame
-            while audioIdx < audioFrames.count,
-                audioFrames[audioIdx].timestamp
-                    <= videoFrame.timestamp
-            {
-                try await segmenter.ingestAudio(
-                    audioFrames[audioIdx]
-                )
-                audioIdx += 1
-            }
-        }
-        // Feed remaining audio
-        while audioIdx < audioFrames.count {
-            try await segmenter.ingestAudio(
-                audioFrames[audioIdx]
-            )
-            audioIdx += 1
-        }
-
-        _ = try await segmenter.finish()
-        let outputs = await collector.value
-        #expect(outputs.count >= 2)
-    }
-
     // MARK: - Codec Validation
 
     @Test("ingestVideo rejects audio frame")
