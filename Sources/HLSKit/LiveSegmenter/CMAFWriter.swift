@@ -20,13 +20,22 @@ import Foundation
 /// let initSeg = writer.generateAudioInitSegment(config: config)
 /// ```
 ///
-/// ## Video
+/// ## Video (H.264)
 /// ```swift
 /// let videoConfig = CMAFWriter.VideoConfig(
 ///     codec: .h264, width: 1920, height: 1080,
 ///     sps: spsData, pps: ppsData
 /// )
 /// let initSeg = writer.generateVideoInitSegment(config: videoConfig)
+/// ```
+///
+/// ## Video (HEVC)
+/// ```swift
+/// let hevcConfig = CMAFWriter.VideoConfig(
+///     codec: .h265, width: 3840, height: 2160,
+///     sps: spsData, pps: ppsData, vps: vpsData
+/// )
+/// let initSeg = writer.generateVideoInitSegment(config: hevcConfig)
 /// ```
 public struct CMAFWriter: Sendable {
 
@@ -192,11 +201,14 @@ extension CMAFWriter {
         /// Frame height in pixels.
         public let height: Int
 
-        /// H.264 Sequence Parameter Set.
+        /// Sequence Parameter Set (H.264 SPS or HEVC SPS).
         public let sps: Data
 
-        /// H.264 Picture Parameter Set.
+        /// Picture Parameter Set (H.264 PPS or HEVC PPS).
         public let pps: Data
+
+        /// HEVC Video Parameter Set. Required for `.h265` codec.
+        public let vps: Data?
 
         /// Track ID. Defaults to 1.
         public let trackID: UInt32
@@ -212,6 +224,7 @@ extension CMAFWriter {
         ///   - height: Frame height.
         ///   - sps: Sequence Parameter Set data.
         ///   - pps: Picture Parameter Set data.
+        ///   - vps: HEVC Video Parameter Set (required for `.h265`).
         ///   - trackID: Track ID. Defaults to 1.
         ///   - timescale: Video timescale. Defaults to 90000.
         public init(
@@ -220,6 +233,7 @@ extension CMAFWriter {
             height: Int,
             sps: Data,
             pps: Data,
+            vps: Data? = nil,
             trackID: UInt32 = 1,
             timescale: UInt32 = 90_000
         ) {
@@ -228,6 +242,7 @@ extension CMAFWriter {
             self.height = height
             self.sps = sps
             self.pps = pps
+            self.vps = vps
             self.trackID = trackID
             self.timescale = timescale
         }

@@ -85,7 +85,13 @@ extension CMAFWriter {
     private func buildVideoStsd(
         config: VideoConfig
     ) -> Data {
-        let sampleEntry = buildAvc1SampleEntry(config: config)
+        let sampleEntry: Data
+        switch config.codec {
+        case .h265:
+            sampleEntry = buildHev1SampleEntry(config: config)
+        default:
+            sampleEntry = buildAvc1SampleEntry(config: config)
+        }
         var payload = BinaryWriter()
         payload.writeUInt32(1)  // entry count
         payload.writeData(sampleEntry)
